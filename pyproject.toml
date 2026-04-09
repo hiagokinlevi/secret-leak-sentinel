@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "secret-leak-sentinel"
+version = "0.1.0"
+description = "Secret detection and prevention for repositories, pipelines, configs, and logs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Hiago Kin Levi" }]
+
+# Runtime dependencies
+dependencies = [
+    # CLI framework
+    "click>=8.1",
+    # Data validation for schemas and policy loading
+    "pydantic>=2.6",
+    # Structured logging
+    "structlog>=24.1",
+    # .env file support
+    "python-dotenv>=1.0",
+    # Git repository interaction (working tree, staging area, history)
+    "gitpython>=3.1",
+    # YAML parsing for policy and suppression files
+    "pyyaml>=6.0",
+    # Rich terminal output: colour-coded findings table
+    "rich>=13.7",
+    # Jinja2 templating for Markdown report generation
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "black>=24.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+# Main CLI entry point registered by pyproject.toml
+k1n-sentinel = "cli.main:cli"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]  # Line length handled by black
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=. --cov-report=term-missing"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

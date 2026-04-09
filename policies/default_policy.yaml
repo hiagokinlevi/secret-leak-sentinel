@@ -1,0 +1,25 @@
+# Default detection policy
+name: default
+version: "1.0"
+description: "Balanced policy for developer workstations and CI environments"
+
+fail_on_severity: high  # Fail the scan run if any finding >= this severity
+
+entropy:
+  enabled: true
+  threshold: 4.5        # Strings with Shannon entropy > 4.5 are flagged
+  min_length: 20        # Only consider strings longer than this
+
+ignored_paths:
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/vendor/**"
+  - "**/*.min.js"
+  - "**/*.min.css"
+  - "**/test*/**"       # Consider removing this in stricter profiles
+
+sample_markers:         # Files matching these patterns are treated as samples
+  - "**/samples/**"
+  - "**/test-data/**"
+  - "**/*.example"
+  - "**/*.sample"
