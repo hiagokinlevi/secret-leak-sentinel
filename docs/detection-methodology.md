@@ -35,6 +35,10 @@ Each pattern has:
 - **Description**: human-readable explanation
 
 Patterns are ordered from most specific to most generic to reduce false positives.
+Provider-specific SaaS patterns are intentionally narrower than generic token
+rules: Stripe detection only flags live `sk_live_` and `rk_live_` keys, Twilio
+requires an auth-token or API-secret assignment context around a 32-character hex
+token, and SendGrid requires the structured `SG.<id>.<secret>` key format.
 
 ## Entropy detection
 

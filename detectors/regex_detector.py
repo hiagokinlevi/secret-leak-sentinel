@@ -23,6 +23,9 @@ class SecretType(str, Enum):
     AWS_ACCESS_KEY = "aws_access_key"
     AWS_SECRET_KEY = "aws_secret_key"
     GITHUB_TOKEN = "github_token"
+    STRIPE_KEY = "stripe_key"
+    TWILIO_TOKEN = "twilio_token"
+    SENDGRID_KEY = "sendgrid_key"
     PRIVATE_KEY = "private_key"
     CONNECTION_STRING = "connection_string"
     GENERIC_SECRET = "generic_secret"
@@ -71,6 +74,30 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
         description="GitHub OAuth Token",
     ),
     DetectorPattern(
+        name="stripe_live_secret_key",
+        pattern=r"\b(?:sk|rk)_live_[A-Za-z0-9]{24,}\b",
+        secret_type=SecretType.STRIPE_KEY,
+        criticality=Criticality.CRITICAL,
+        description="Stripe live secret or restricted API key",
+    ),
+    DetectorPattern(
+        name="twilio_auth_token_assignment",
+        pattern=(
+            r"(?i)(?:twilio[_-]?)?(?:auth[_-]?token|api[_-]?secret)"
+            r"\s*[=:]\s*[\"']?([a-f0-9]{32})[\"']?"
+        ),
+        secret_type=SecretType.TWILIO_TOKEN,
+        criticality=Criticality.CRITICAL,
+        description="Twilio auth token or API secret in assignment context",
+    ),
+    DetectorPattern(
+        name="sendgrid_api_key",
+        pattern=r"\bSG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{32,}\b",
+        secret_type=SecretType.SENDGRID_KEY,
+        criticality=Criticality.CRITICAL,
+        description="SendGrid API key",
+    ),
+    DetectorPattern(
         name="pem_private_key",
         pattern=r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
         secret_type=SecretType.PRIVATE_KEY,
@@ -93,7 +120,7 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
     ),
     DetectorPattern(
         name="database_connection_string",
-        pattern=r"(?i)(postgres|mysql|mssql|mongodb)\+?://[^:\s]+:[^@\s]+@",
+        pattern=r"(?i)(postgresql|postgres|mysql|mssql|mongodb)\+?://[^:\s]+:[^@\s]+@",
         secret_type=SecretType.CONNECTION_STRING,
         criticality=Criticality.HIGH,
         description="Database connection string with embedded credentials",

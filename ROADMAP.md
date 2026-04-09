@@ -21,9 +21,9 @@ Planned development direction for `secret-leak-sentinel`.
 
 ## v0.2 — Pattern coverage expansion
 
-- [ ] Stripe API key patterns (`sk_live_`, `rk_live_`)
-- [ ] Twilio auth tokens
-- [ ] SendGrid API keys
+- [x] Stripe API key patterns (`sk_live_`, `rk_live_`)
+- [x] Twilio auth tokens
+- [x] SendGrid API keys
 - [ ] Azure SAS tokens and connection strings
 - [ ] GCP service account JSON key detection
 - [ ] JWT token detection (unsigned or weak-signature JWTs)

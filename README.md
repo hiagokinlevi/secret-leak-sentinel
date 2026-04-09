@@ -17,6 +17,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 ## Features
 
 - **Regex detection** — curated patterns for AWS keys, GitHub tokens, PEM blocks, connection strings, password assignments, and more
+- **SaaS credential coverage** — detects live Stripe secret/restricted keys, Twilio auth tokens, and SendGrid API keys
 - **Entropy detection** — flags high-entropy strings that pattern matching alone might miss
 - **Git integration** — scan staged files, working tree, or commit history with gitpython
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
@@ -36,6 +37,15 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 git clone https://github.com/hiagokinlevi/secret-leak-sentinel.git
 cd secret-leak-sentinel
 pip install -e ".[dev]"
+```
+
+For dependency-restricted workstations that already provide the runtime
+dependencies, the repository also supports an offline editable install:
+
+```bash
+python -m venv --system-site-packages .venv
+.venv/bin/python -m pip install -e . --no-deps --no-build-isolation
+.venv/bin/k1n-sentinel --help
 ```
 
 ### Scan a directory
@@ -72,6 +82,9 @@ chmod +x .git/hooks/pre-commit
 | AWS Access Key ID           | `AKIA[0-9A-Z]{16}`                     | CRITICAL    |
 | GitHub Personal Access Token | `ghp_[A-Za-z0-9]{36}`                | CRITICAL    |
 | GitHub OAuth Token          | `gho_[A-Za-z0-9]{36}`                 | CRITICAL    |
+| Stripe live key             | `sk_live_...`, `rk_live_...`          | CRITICAL    |
+| Twilio auth token           | `TWILIO_AUTH_TOKEN=...`               | CRITICAL    |
+| SendGrid API key            | `SG.<id>.<secret>`                    | CRITICAL    |
 | PEM Private Key             | `-----BEGIN ... PRIVATE KEY-----`      | CRITICAL    |
 | API key in assignment       | `api_key = "abc123..."`               | HIGH        |
 | Password in assignment      | `password = "mypassword"`             | HIGH        |

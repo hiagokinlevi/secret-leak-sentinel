@@ -82,6 +82,54 @@ class TestGitHubTokenDetection:
         assert gh_findings == []
 
 
+class TestSaaSTokenDetection:
+    """Tests for provider-specific SaaS API token patterns."""
+
+    def test_detects_stripe_live_secret_key(self):
+        content = "STRIPE_SECRET_KEY=sk_live_" + "A" * 24
+        findings = scan_content(content, ".env")
+        stripe = [f for f in findings if f.detector_name == "stripe_live_secret_key"]
+        assert len(stripe) == 1
+        assert stripe[0].criticality == Criticality.CRITICAL
+        assert stripe[0].secret_type == SecretType.STRIPE_KEY
+
+    def test_detects_stripe_restricted_live_key(self):
+        content = "stripe_key = 'rk_live_" + "B" * 28 + "'"
+        findings = scan_content(content, "settings.py")
+        assert any(f.detector_name == "stripe_live_secret_key" for f in findings)
+
+    def test_ignores_stripe_test_key(self):
+        content = "STRIPE_SECRET_KEY=sk_test_" + "C" * 24
+        findings = scan_content(content, ".env.example")
+        assert not any(f.detector_name == "stripe_live_secret_key" for f in findings)
+
+    def test_detects_twilio_auth_token_assignment(self):
+        content = "TWILIO_AUTH_TOKEN=" + "a" * 32
+        findings = scan_content(content, ".env")
+        twilio = [f for f in findings if f.detector_name == "twilio_auth_token_assignment"]
+        assert len(twilio) == 1
+        assert twilio[0].secret_type == SecretType.TWILIO_TOKEN
+
+    def test_ignores_bare_32_char_hex_without_context(self):
+        content = "checksum = " + "b" * 32
+        findings = scan_content(content, "checksums.txt")
+        assert not any(f.detector_name == "twilio_auth_token_assignment" for f in findings)
+
+    def test_detects_sendgrid_api_key(self):
+        content = "SENDGRID_API_KEY=SG." + "a" * 22 + "." + "b" * 43
+        findings = scan_content(content, ".env")
+        sendgrid = [f for f in findings if f.detector_name == "sendgrid_api_key"]
+        assert len(sendgrid) == 1
+        assert sendgrid[0].criticality == Criticality.CRITICAL
+        assert sendgrid[0].secret_type == SecretType.SENDGRID_KEY
+
+    def test_saas_tokens_are_masked(self):
+        content = "SENDGRID_API_KEY=SG." + "a" * 22 + "." + "b" * 43
+        findings = scan_content(content, ".env")
+        sendgrid = next(f for f in findings if f.detector_name == "sendgrid_api_key")
+        assert "b" * 43 not in sendgrid.masked_excerpt
+
+
 class TestPEMPrivateKeyDetection:
     """Tests for the pem_private_key detector pattern."""
 

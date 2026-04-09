@@ -41,6 +41,24 @@ _REMEDIATION_GUIDES: dict[str, str] = {
         "3. Generate a new token with minimal required scopes.\n"
         "4. Remove the token from the file and rewrite git history if it was committed."
     ),
+    "stripe_key": (
+        "1. Roll the exposed live key in the Stripe Dashboard.\n"
+        "2. Replace it with a restricted key scoped to the minimum required operations.\n"
+        "3. Review recent API request logs for unexpected activity.\n"
+        "4. Remove the key from source and rewrite git history if it was committed."
+    ),
+    "twilio_token": (
+        "1. Rotate the Twilio auth token or API secret from the Twilio Console.\n"
+        "2. Update every application, webhook, and CI secret using the old value.\n"
+        "3. Review recent messaging and voice activity for misuse.\n"
+        "4. Remove the token from source and rewrite git history if it was committed."
+    ),
+    "sendgrid_key": (
+        "1. Revoke the SendGrid API key from Settings > API Keys.\n"
+        "2. Create a replacement key with only the scopes required by the sender.\n"
+        "3. Review mail activity and suppression changes around the exposure window.\n"
+        "4. Remove the key from source and rewrite git history if it was committed."
+    ),
     "private_key": (
         "1. Revoke or rotate the private key with the issuing authority (CA, cloud provider, etc.).\n"
         "2. Remove the key material from the file.\n"
@@ -69,6 +87,9 @@ def _get_remediation(secret_type_value: str) -> str:
         "aws_access_key": "aws_access_key",
         "aws_secret_key": "aws_access_key",  # Same process
         "github_token": "github_token",
+        "stripe_key": "stripe_key",
+        "twilio_token": "twilio_token",
+        "sendgrid_key": "sendgrid_key",
         "private_key": "private_key",
         "connection_string": "connection_string",
     }

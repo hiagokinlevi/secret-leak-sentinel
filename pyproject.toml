@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "secret-leak-sentinel"
@@ -42,7 +42,20 @@ dev = [
 
 [project.scripts]
 # Main CLI entry point registered by pyproject.toml
-k1n-sentinel = "cli.main:cli"
+k1n-sentinel = "secret_leak_sentinel_cli:cli"
+
+[tool.setuptools]
+py-modules = ["secret_leak_sentinel_cli", "structlog"]
+packages = [
+    "alerting",
+    "classifiers",
+    "cli",
+    "detectors",
+    "hooks",
+    "reports",
+    "scanners",
+    "schemas",
+]
 
 [tool.black]
 line-length = 100
