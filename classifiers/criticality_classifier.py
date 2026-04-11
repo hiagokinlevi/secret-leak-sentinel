@@ -39,7 +39,7 @@ class ClassifiedFinding:
     entropy_corroboration: bool     # True if an entropy finding corroborates the regex finding
     context_penalty: bool           # True if context reduced the confidence (e.g., test file)
     context_escalation: bool        # True if context raised confidence (e.g., .env file)
-    context_labels: tuple[str, ...]  # Explicit context labels used during classification
+    context_labels: tuple[str, ...] = ()  # Explicit context labels used during classification
 
 
 def classify_finding(
