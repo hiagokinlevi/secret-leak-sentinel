@@ -17,7 +17,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 ## Features
 
 - **Regex detection** — curated patterns for AWS keys, GitHub tokens, PEM, SSH2, and PuTTY private-key headers, connection strings, password assignments, and more
-- **Cloud and SaaS credential coverage** — detects Azure SAS URLs, Azure storage connection strings, GCP service account JSON key indicators, live Stripe secret/restricted keys, Twilio auth tokens, SendGrid API keys, and weak or unsigned JWT bearer tokens
+- **Cloud and SaaS credential coverage** — detects Azure SAS URLs, Azure storage connection strings, GCP service account JSON key indicators, live Stripe secret/restricted keys, Twilio auth tokens, SendGrid API keys, HashiCorp Vault tokens, and weak or unsigned JWT bearer tokens
 - **Entropy detection** — flags high-entropy strings that pattern matching alone might miss
 - **Git integration** — scan staged files, working tree, or commit history with gitpython
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
@@ -88,6 +88,7 @@ chmod +x .git/hooks/pre-commit
 | Azure SAS URL               | `https://...blob.core.windows.net/...?...&sig=...` | CRITICAL |
 | Azure storage connection string | `DefaultEndpointsProtocol=...;AccountKey=...` | CRITICAL |
 | GCP service account key JSON | `"private_key_id": "...", "client_email": "...gserviceaccount.com"` | CRITICAL / HIGH |
+| HashiCorp Vault token       | `hvs....`, `hvb....`, or `X-Vault-Token: s....` | CRITICAL |
 | Weak or unsigned JWT bearer token | `Bearer eyJ...` with `alg: none` or `HS256/384/512` | HIGH |
 | PEM / PKCS#8 Private Key    | `-----BEGIN ... PRIVATE KEY-----`      | CRITICAL    |
 | SSH2 Private Key            | `---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----` | CRITICAL |
@@ -150,6 +151,13 @@ first-class high-signal detections. The regexes stay intentionally narrow so
 they catch production-shaped cloud credentials without broadly flagging
 ordinary query strings or unrelated JSON documents.
 
+Vault coverage follows the same bias toward high-signal matches. The detector
+flags modern Vault token prefixes such as `hvs.`, `hvb.`, and `hvr.` directly,
+and only treats legacy single-letter prefixes such as `s.` as findings when
+they appear in explicit Vault contexts like `VAULT_TOKEN=` assignments or
+`X-Vault-Token:` headers. That keeps generic short `s.` strings out of the
+high-severity path while still surfacing production-shaped Vault tokens.
+
 JWT coverage is also intentionally narrow: the detector only emits a finding
 when a JWT-shaped bearer token decodes to `alg: none` or an HMAC signing mode
 (`HS256`, `HS384`, or `HS512`). That keeps asymmetric `RS*`, `ES*`, and
@@ -173,4 +181,4 @@ See [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+CC BY 4.0 — see [LICENSE](LICENSE).

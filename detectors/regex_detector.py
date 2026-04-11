@@ -140,6 +140,23 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
         description="GCP service account JSON client_email field",
     ),
     DetectorPattern(
+        name="vault_token_modern",
+        pattern=r"\b(?:hvs|hvb|hvr)\.[A-Za-z0-9_-]{24,}\b",
+        secret_type=SecretType.API_TOKEN,
+        criticality=Criticality.CRITICAL,
+        description="HashiCorp Vault service, batch, or recovery token",
+    ),
+    DetectorPattern(
+        name="vault_token_legacy_assignment",
+        pattern=(
+            r"(?i)(?:x-vault-token|vault[_-]?token)\s*[:=]\s*[\"']?"
+            r"(?:s|b|r)\.[A-Za-z0-9_-]{24,}[\"']?"
+        ),
+        secret_type=SecretType.API_TOKEN,
+        criticality=Criticality.CRITICAL,
+        description="Legacy HashiCorp Vault token in assignment or header context",
+    ),
+    DetectorPattern(
         name="pem_private_key",
         pattern=r"-----BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----",
         secret_type=SecretType.PRIVATE_KEY,

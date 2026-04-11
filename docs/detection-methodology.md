@@ -41,8 +41,11 @@ requires an auth-token or API-secret assignment context around a 32-character he
 token, SendGrid requires the structured `SG.<id>.<secret>` key format, Azure SAS
 coverage requires a signed URL shape with `sv` and `sig` parameters, and GCP
 service-account coverage keys off the `private_key_id` and
-`client_email ... iam.gserviceaccount.com` JSON fields. Private-key coverage
-also spans classic PEM headers, encrypted PKCS#8 blocks, SSH.com `SSH2`
+`client_email ... iam.gserviceaccount.com` JSON fields. Vault coverage flags
+modern `hvs.`, `hvb.`, and `hvr.` tokens directly while only treating legacy
+single-letter prefixes such as `s.` as findings when they appear in explicit
+Vault assignment or header contexts. Private-key coverage also spans classic
+PEM headers, encrypted PKCS#8 blocks, SSH.com `SSH2`
 private-key blocks, and PuTTY `.ppk` headers. JWT coverage uses a two-step
 check: a narrow regex first finds JWT-shaped bearer tokens, then the detector
 base64url-decodes the header and only emits a finding when the header

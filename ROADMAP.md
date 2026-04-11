@@ -28,7 +28,7 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] GCP service account JSON key detection
 - [x] JWT token detection (unsigned or weak-signature JWTs)
 - [x] SSH private key detection (PEM, PKCS#8, SSH2, and PuTTY formats)
-- [ ] HashiCorp Vault tokens
+- [x] HashiCorp Vault tokens
 
 ---
 

@@ -307,6 +307,52 @@ class TestJWTDetection:
         assert token not in jwt_finding.masked_excerpt
 
 
+class TestVaultTokenDetection:
+    """Tests for HashiCorp Vault token detector patterns."""
+
+    def test_detects_modern_service_token(self):
+        content = "VAULT_TOKEN=hvs.CAESICg2bhAsyvurkbzEV8JgLaCF2pqanZCVWJHMGNZZXA"
+        findings = scan_content(content, ".env")
+        vault_findings = [f for f in findings if f.detector_name == "vault_token_modern"]
+        assert len(vault_findings) == 1
+        assert vault_findings[0].criticality == Criticality.CRITICAL
+        assert vault_findings[0].secret_type == SecretType.API_TOKEN
+
+    def test_detects_modern_batch_token(self):
+        content = "X-Vault-Token: hvb.CAESIGJhdGNoVG9rZW5Gb3JUZXN0aW5nMTIzNDU2Nzg5"
+        findings = scan_content(content, "headers.txt")
+        vault_findings = [f for f in findings if f.detector_name == "vault_token_modern"]
+        assert len(vault_findings) == 1
+
+    def test_detects_legacy_service_token_in_assignment_context(self):
+        content = "vault_token = 's.n4M0dE1lZ2FjeVRva2VuRm9yRGV0ZWN0aW9uMTIzNDU2'"
+        findings = scan_content(content, "config.py")
+        vault_findings = [
+            f for f in findings if f.detector_name == "vault_token_legacy_assignment"
+        ]
+        assert len(vault_findings) == 1
+
+    def test_does_not_flag_short_modern_vault_token(self):
+        content = "VAULT_TOKEN=hvs.short-example"
+        findings = scan_content(content, ".env")
+        vault_findings = [f for f in findings if f.detector_name == "vault_token_modern"]
+        assert vault_findings == []
+
+    def test_does_not_flag_legacy_token_without_vault_context(self):
+        content = "note = 's.n4M0dE1lZ2FjeVRva2VuRm9yRGV0ZWN0aW9uMTIzNDU2'"
+        findings = scan_content(content, "notes.txt")
+        vault_findings = [
+            f for f in findings if f.detector_name == "vault_token_legacy_assignment"
+        ]
+        assert vault_findings == []
+
+    def test_masks_vault_token_value(self):
+        token = "hvs.CAESICg2bhAsyvurkbzEV8JgLaCF2pqanZCVWJHMGNZZXA"
+        findings = scan_content(f"VAULT_TOKEN={token}", ".env")
+        vault_finding = next(f for f in findings if f.detector_name == "vault_token_modern")
+        assert token not in vault_finding.masked_excerpt
+
+
 class TestPasswordAssignmentDetection:
     """Tests for the password_assignment detector pattern."""
 
