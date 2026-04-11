@@ -1,0 +1,94 @@
+name: "Secret Leak Sentinel"
+description: "Run secret-leak-sentinel in GitHub Actions with validated CLI inputs and report outputs."
+author: "Hiago Kin Levi"
+branding:
+  icon: "shield"
+  color: "red"
+
+inputs:
+  command:
+    description: "Supported secret-leak-sentinel subcommand to run."
+    required: true
+  args:
+    description: "Additional arguments for the selected subcommand. Do not include root CLI flags here."
+    required: false
+    default: ""
+  output-dir:
+    description: "Directory where generated reports should be written."
+    required: false
+    default: "./scan-results"
+  fail-on:
+    description: "Minimum severity that fails the action."
+    required: false
+    default: "high"
+  entropy-enabled:
+    description: "Enable or disable the entropy detector."
+    required: false
+    default: "true"
+  entropy-threshold:
+    description: "Entropy threshold forwarded to the CLI root option."
+    required: false
+    default: "4.5"
+  policy-profile:
+    description: "Policy profile passed to the CLI root option."
+    required: false
+    default: "default"
+  python-version:
+    description: "Python version used to install and run secret-leak-sentinel."
+    required: false
+    default: "3.11"
+  working-directory:
+    description: "Workspace directory where the CLI command should run."
+    required: false
+    default: "."
+
+outputs:
+  command:
+    description: "Resolved secret-leak-sentinel command that was executed."
+    value: ${{ steps.run.outputs.command }}
+  working-directory:
+    description: "Resolved working directory used for the CLI run."
+    value: ${{ steps.run.outputs.working_directory }}
+  output-directory:
+    description: "Resolved report output directory."
+    value: ${{ steps.run.outputs.output_directory }}
+  report-markdown:
+    description: "Newest Markdown report generated in the output directory, if any."
+    value: ${{ steps.run.outputs.report_markdown }}
+  report-csv:
+    description: "Newest CSV report generated in the output directory, if any."
+    value: ${{ steps.run.outputs.report_csv }}
+  report-html:
+    description: "Newest HTML report generated in the output directory, if any."
+    value: ${{ steps.run.outputs.report_html }}
+  exit-code:
+    description: "CLI exit code returned by the action entrypoint."
+    value: ${{ steps.run.outputs.exit_code }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install secret-leak-sentinel
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install "${{ github.action_path }}"
+
+    - name: Run secret-leak-sentinel
+      id: run
+      shell: bash
+      run: |
+        python "${{ github.action_path }}/scripts/github_action_entrypoint.py" \
+          --command "${{ inputs.command }}" \
+          --args "${{ inputs.args }}" \
+          --output-dir "${{ inputs.output-dir }}" \
+          --fail-on "${{ inputs.fail-on }}" \
+          --entropy-enabled "${{ inputs.entropy-enabled }}" \
+          --entropy-threshold "${{ inputs.entropy-threshold }}" \
+          --policy-profile "${{ inputs.policy-profile }}" \
+          --working-directory "${{ inputs.working-directory }}"
