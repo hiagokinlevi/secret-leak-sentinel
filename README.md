@@ -24,6 +24,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **Pre-push hook** — scans outgoing commit patches so `--no-verify` commits still get a last defensive check
 - **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
 - **VS Code extension scaffold** — a local editor integration runs `scan-file --json-output` and turns findings into inline diagnostics
+- **Context-aware classification** — explicit context analysis distinguishes live secret stores, CI pipelines, docs, and test fixtures to tune confidence and severity
 - **Criticality classification** — multi-signal classifier assigns final severity and confidence scores
 - **Rich terminal output** — colour-coded findings table via the `rich` library
 - **Structured JSON output for file scans** — stable machine-readable payload for editor and automation integrations
@@ -231,11 +232,14 @@ when a JWT-shaped bearer token decodes to `alg: none` or an HMAC signing mode
 similar JWTs out of the high-signal secret list while still catching portable
 tokens that are unsigned or commonly backed by shared secrets.
 
-The classifier also treats live dotenv-style files such as `.env`,
-`.env.local`, `.env.production`, and `config.env` as high-risk storage
-locations, which escalates confirmed `HIGH` findings to `CRITICAL`. Placeholder
-dotenv examples such as `.env.example` and `.env.sample` stay out of that
-automatic escalation path so public templates and docs do not get overstated.
+The classifier now applies explicit context analysis before producing the final
+severity. Live dotenv-style files such as `.env`, `.env.local`,
+`.env.production`, and `config.env` remain high-risk storage locations that
+escalate confirmed `HIGH` findings to `CRITICAL`. Placeholder dotenv examples
+such as `.env.example` and `.env.sample` stay out of that automatic escalation
+path, while documentation-oriented paths, sample fixtures, and CI workflow
+files now contribute separate context labels and confidence adjustments that
+travel through the JSON output as `context_labels`.
 
 SSH private-key coverage spans traditional PEM headers, encrypted PKCS#8
 blocks, SSH.com `SSH2` private-key blocks, and PuTTY `.ppk` headers so
