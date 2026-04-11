@@ -168,3 +168,77 @@ def test_scan_file_json_output_patch_mode_uses_patch_findings_file_path(tmp_path
     assert payload["scan_mode"] == "patch"
     assert payload["scan_target"] == str(patch)
     assert payload["findings"][0]["file_path"] == "src/settings.py"
+
+
+def test_scan_file_json_output_patch_mode_preserves_added_line_number(tmp_path):
+    patch = tmp_path / "line-number.diff"
+    patch.write_text(
+        "\n".join(
+            [
+                "diff --git a/src/settings.py b/src/settings.py",
+                "index 1111111..2222222 100644",
+                "--- a/src/settings.py",
+                "+++ b/src/settings.py",
+                "@@ -8,2 +8,3 @@",
+                ' existing = "safe"',
+                f'+AWS_ACCESS_KEY_ID = "{_FAKE_AWS}"',
+                '+print("after secret")',
+                '-removed = True',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["scan-file", "--patch-mode", "--json-output", str(patch)])
+
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert payload["findings"][0]["file_path"] == "src/settings.py"
+    assert payload["findings"][0]["line_number"] == 9
+
+
+def test_scan_file_json_output_patch_mode_preserves_line_number_with_entropy_corroboration(tmp_path):
+    patch = tmp_path / "entropy-line-number.diff"
+    patch.write_text(
+        "\n".join(
+            [
+                "diff --git a/src/settings.py b/src/settings.py",
+                "index 1111111..2222222 100644",
+                "--- a/src/settings.py",
+                "+++ b/src/settings.py",
+                "@@ -10,1 +10,2 @@",
+                ' existing = "safe"',
+                '+api_key = "aB3xY7mK9pQrZ2wE5vN8sD1cF4uH6tL0jI2qW"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--entropy-threshold",
+            "4.0",
+            "scan-file",
+            "--patch-mode",
+            "--json-output",
+            str(patch),
+        ],
+    )
+
+    payload = json.loads(result.output)
+
+    api_key_finding = next(
+        finding
+        for finding in payload["findings"]
+        if finding["detector_name"] == "generic_api_key_assignment"
+    )
+    assert result.exit_code == 1
+    assert api_key_finding["file_path"] == "src/settings.py"
+    assert api_key_finding["line_number"] == 11
+    assert api_key_finding["entropy_corroboration"] is True
