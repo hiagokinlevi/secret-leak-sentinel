@@ -208,6 +208,29 @@ class TestPEMPrivateKeyDetection:
         pem_findings = [f for f in findings if f.detector_name == "pem_private_key"]
         assert len(pem_findings) == 1
 
+    def test_detects_encrypted_private_key(self):
+        """Encrypted PKCS#8 private key material should be flagged."""
+        content = "-----BEGIN ENCRYPTED PRIVATE KEY-----"
+        findings = scan_content(content, "encrypted.key")
+        pem_findings = [f for f in findings if f.detector_name == "pem_private_key"]
+        assert len(pem_findings) == 1
+
+    def test_detects_ssh2_private_key_header(self):
+        """SSH.com SSH2 private key material should be flagged."""
+        content = "---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----"
+        findings = scan_content(content, "id_ssh2")
+        ssh2_findings = [f for f in findings if f.detector_name == "ssh2_private_key"]
+        assert len(ssh2_findings) == 1
+        assert ssh2_findings[0].criticality == Criticality.CRITICAL
+
+    def test_detects_putty_private_key_header(self):
+        """PuTTY PPK private key material should be flagged."""
+        content = "PuTTY-User-Key-File-3: ssh-ed25519"
+        findings = scan_content(content, "id_ed25519.ppk")
+        putty_findings = [f for f in findings if f.detector_name == "putty_private_key"]
+        assert len(putty_findings) == 1
+        assert putty_findings[0].secret_type == SecretType.PRIVATE_KEY
+
     def test_does_not_flag_public_key_header(self):
         """A PUBLIC key header is not a private key and should not match pem_private_key."""
         content = "-----BEGIN PUBLIC KEY-----"
@@ -221,6 +244,13 @@ class TestPEMPrivateKeyDetection:
         findings = scan_content(content, "cert.pem")
         pem_findings = [f for f in findings if f.detector_name == "pem_private_key"]
         assert pem_findings == []
+
+    def test_does_not_flag_putty_public_key_header(self):
+        """PuTTY public key exports must not match the private key detector."""
+        content = "PuTTY-User-Key-File-3: ssh-public"
+        findings = scan_content(content, "id_rsa.pub")
+        putty_findings = [f for f in findings if f.detector_name == "putty_private_key"]
+        assert putty_findings == []
 
 
 class TestPasswordAssignmentDetection:

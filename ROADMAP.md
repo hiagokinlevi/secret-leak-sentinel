@@ -27,7 +27,7 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Azure SAS tokens and connection strings
 - [x] GCP service account JSON key detection
 - [ ] JWT token detection (unsigned or weak-signature JWTs)
-- [ ] SSH private key detection (all formats)
+- [x] SSH private key detection (PEM, PKCS#8, SSH2, and PuTTY formats)
 - [ ] HashiCorp Vault tokens
 
 ---

@@ -41,7 +41,9 @@ requires an auth-token or API-secret assignment context around a 32-character he
 token, SendGrid requires the structured `SG.<id>.<secret>` key format, Azure SAS
 coverage requires a signed URL shape with `sv` and `sig` parameters, and GCP
 service-account coverage keys off the `private_key_id` and
-`client_email ... iam.gserviceaccount.com` JSON fields.
+`client_email ... iam.gserviceaccount.com` JSON fields. Private-key coverage
+also spans classic PEM headers, encrypted PKCS#8 blocks, SSH.com `SSH2`
+private-key blocks, and PuTTY `.ppk` headers.
 
 ## Entropy detection
 

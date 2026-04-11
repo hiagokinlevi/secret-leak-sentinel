@@ -139,10 +139,27 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
     ),
     DetectorPattern(
         name="pem_private_key",
-        pattern=r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
+        pattern=r"-----BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----",
         secret_type=SecretType.PRIVATE_KEY,
         criticality=Criticality.CRITICAL,
-        description="PEM-encoded private key block",
+        description="PEM or PKCS#8 private key block",
+    ),
+    DetectorPattern(
+        name="ssh2_private_key",
+        pattern=r"---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----",
+        secret_type=SecretType.PRIVATE_KEY,
+        criticality=Criticality.CRITICAL,
+        description="SSH.com SSH2 private key block",
+    ),
+    DetectorPattern(
+        name="putty_private_key",
+        pattern=(
+            r"PuTTY-User-Key-File-(?:2|3):\s*"
+            r"(?:ssh-(?:rsa|dss|ed25519)|ecdsa-sha2-nistp(?:256|384|521))"
+        ),
+        secret_type=SecretType.PRIVATE_KEY,
+        criticality=Criticality.CRITICAL,
+        description="PuTTY PPK private key header",
     ),
     DetectorPattern(
         name="generic_api_key_assignment",
