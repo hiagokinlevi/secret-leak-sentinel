@@ -19,7 +19,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **Regex detection** — curated patterns for AWS keys, GitHub tokens, PEM, SSH2, and PuTTY private-key headers, connection strings, password assignments, and more
 - **Cloud and SaaS credential coverage** — detects Azure SAS URLs, Azure storage connection strings, GCP service account JSON key indicators, live Stripe secret/restricted keys, Twilio auth tokens, SendGrid API keys, HashiCorp Vault tokens, and weak or unsigned JWT bearer tokens
 - **Entropy detection** — flags high-entropy strings that pattern matching alone might miss
-- **Git integration** — scan staged files, working tree, or commit history with gitpython
+- **Git integration** — scan staged files, working tree, or full commit history with commit-level attribution and blob deduplication
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
 - **Criticality classification** — multi-signal classifier assigns final severity and confidence scores
 - **Rich terminal output** — colour-coded findings table via the `rich` library
@@ -63,7 +63,7 @@ k1n-sentinel scan-staged
 ### Scan git history
 
 ```bash
-k1n-sentinel scan-git --repo ./my-project --depth 50
+k1n-sentinel scan-git-history --repo ./my-project --max-commits 50
 ```
 
 ### Install the pre-commit hook
@@ -168,6 +168,12 @@ SSH private-key coverage spans traditional PEM headers, encrypted PKCS#8
 blocks, SSH.com `SSH2` private-key blocks, and PuTTY `.ppk` headers so
 private-key material is still flagged when teams store it outside the
 classic OpenSSL PEM layout.
+
+Git history scans now walk commits in chronological order, inspect only the
+lines introduced by each commit, and skip rescanning unchanged blobs across
+later commits. That keeps large repositories practical to review while making
+the first introducing commit, author, and line context visible in the CLI
+output.
 
 ---
 

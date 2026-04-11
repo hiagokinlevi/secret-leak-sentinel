@@ -34,10 +34,10 @@ Planned development direction for `secret-leak-sentinel`.
 
 ## v0.3 — Git history scanning
 
-- [ ] Deep git log scan (all commits in history, not just current tree)
-- [ ] Blob deduplication to avoid rescanning unchanged file content
-- [ ] Per-commit finding attribution (which commit introduced the secret)
-- [ ] Report: git history scan with commit hashes and author info
+- [x] Deep git log scan (all commits in history, not just current tree)
+- [x] Blob deduplication to avoid rescanning unchanged file content
+- [x] Per-commit finding attribution (which commit introduced the secret)
+- [x] Report: git history scan with commit hashes and author info
 
 ---
 

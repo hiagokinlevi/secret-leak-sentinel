@@ -34,7 +34,7 @@ Developer workstation  -->  Pre-commit hook  -->  [commit blocked if secrets fou
 CI pipeline  -->  scan-path / scan-staged  -->  [pipeline fails if secrets found]
                                  |
                                  v
-Post-incident  -->  scan-git (full history)  -->  [find and remediate historical leaks]
+Post-incident  -->  scan-git-history  -->  [find and remediate historical leaks]
 ```
 
 ## Next steps

@@ -61,9 +61,11 @@ class FileDiff:
     Attributes:
         path:    Relative file path.
         content: Text content of the added/changed lines.
+        blob_id: Optional git blob identifier for deduplication.
     """
     path:    str
     content: str = ""
+    blob_id: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +241,11 @@ def _fingerprint(file_path: str, rule_id: str, evidence: str) -> str:
     return hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()[:16]
 
 
+def _content_fingerprint(file_path: str, content: str) -> str:
+    raw = f"{file_path}:{content}"
+    return hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()
+
+
 def _redact(text: str, max_len: int = 80) -> str:
     """Truncate to max_len, masking the middle portion of long strings."""
     if len(text) <= max_len:
@@ -290,11 +297,18 @@ class GitHistoryScanner:
         """
         all_findings: List[HistoryFinding] = []
         total_files = 0
+        scanned_blobs: set[str] = set()
+        scanned_contents: set[str] = set()
 
         for snap in snapshots:
             for diff in snap.diffs:
                 total_files += 1
                 if self._should_skip(diff.path):
+                    continue
+                if diff.blob_id and diff.blob_id in scanned_blobs:
+                    continue
+                content_fp = _content_fingerprint(diff.path, diff.content)
+                if content_fp in scanned_contents:
                     continue
                 findings = self._scan_content(
                     content=diff.content,
@@ -304,6 +318,9 @@ class GitHistoryScanner:
                     commit_ts=snap.timestamp,
                 )
                 all_findings.extend(findings)
+                scanned_contents.add(content_fp)
+                if diff.blob_id:
+                    scanned_blobs.add(diff.blob_id)
 
         # Deduplicate by fingerprint (keep first occurrence)
         seen: set = set()
@@ -343,6 +360,7 @@ class GitHistoryScanner:
         commits = list(repo.iter_commits(ref))
         if self._max_commits is not None:
             commits = commits[:self._max_commits]
+        commits = list(reversed(commits))
 
         snapshots = []
         for commit in commits:
@@ -354,17 +372,24 @@ class GitHistoryScanner:
                 else:
                     diff_items = commit.diff(None, create_patch=True)
                 for di in diff_items:
-                    if di.a_blob and di.a_blob.data_stream:
-                        try:
-                            content = di.a_blob.data_stream.read().decode(
-                                "utf-8", errors="replace"
-                            )
-                        except Exception:
-                            content = ""
-                        diffs.append(FileDiff(
-                            path=di.a_path or "",
-                            content=content,
-                        ))
+                    try:
+                        content = self._extract_added_lines(di.diff)
+                    except Exception:
+                        content = ""
+
+                    path = di.b_path or di.a_path or ""
+                    if not path or not content.strip():
+                        continue
+
+                    blob_id = None
+                    if di.b_blob is not None:
+                        blob_id = di.b_blob.hexsha
+
+                    diffs.append(FileDiff(
+                        path=path,
+                        content=content,
+                        blob_id=blob_id,
+                    ))
             except Exception:
                 pass
 
@@ -418,3 +443,20 @@ class GitHistoryScanner:
                         fingerprint=fp,
                     ))
         return findings
+
+    @staticmethod
+    def _extract_added_lines(diff_bytes: bytes | str | None) -> str:
+        if not diff_bytes:
+            return ""
+        if isinstance(diff_bytes, bytes):
+            patch_text = diff_bytes.decode("utf-8", errors="replace")
+        else:
+            patch_text = diff_bytes
+
+        added_lines: List[str] = []
+        for line in patch_text.splitlines():
+            if line.startswith("+++ ") or line.startswith("@@"):
+                continue
+            if line.startswith("+"):
+                added_lines.append(line[1:])
+        return "\n".join(added_lines)

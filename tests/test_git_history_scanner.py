@@ -40,6 +40,10 @@ def _diff(path="main.py", content="") -> FileDiff:
     return FileDiff(path=path, content=content)
 
 
+def _diff_with_blob(path="main.py", content="", blob_id=None) -> FileDiff:
+    return FileDiff(path=path, content=content, blob_id=blob_id)
+
+
 def _rule_ids(report: HistoryScanReport) -> set[str]:
     return {f.rule_id for f in report.findings}
 
@@ -320,6 +324,22 @@ class TestDeduplication:
         aws_findings = r.findings_by_rule("AWS_ACCESS_KEY")
         assert len(aws_findings) == 2
 
+    def test_same_blob_id_not_rescanned(self):
+        content = "AKIAIOSFODNN7EXAMPLEKEY"
+        snap1 = _commit(sha="sha1", diffs=[_diff_with_blob(path="config.py", content=content, blob_id="blob1")])
+        snap2 = _commit(sha="sha2", diffs=[_diff_with_blob(path="config.py", content=content, blob_id="blob1")])
+        r = _scanner().scan_snapshots([snap1, snap2])
+        aws_findings = r.findings_by_rule("AWS_ACCESS_KEY")
+        assert len(aws_findings) == 1
+
+    def test_same_content_without_blob_id_not_rescanned(self):
+        content = "AKIAIOSFODNN7EXAMPLEKEY"
+        snap1 = _commit(sha="sha1", diffs=[_diff(path="config.py", content=content)])
+        snap2 = _commit(sha="sha2", diffs=[_diff(path="config.py", content=content)])
+        r = _scanner().scan_snapshots([snap1, snap2])
+        aws_findings = r.findings_by_rule("AWS_ACCESS_KEY")
+        assert len(aws_findings) == 1
+
 
 # ===========================================================================
 # Report metadata
@@ -350,3 +370,18 @@ class TestReportMetadata:
         r = _scanner().scan_snapshots([])
         assert r.total_findings == 0
         assert r.commits_scanned == 0
+
+
+class TestLiveDiffHelpers:
+    def test_extract_added_lines_ignores_headers_and_removals(self):
+        patch = (
+            "diff --git a/config.py b/config.py\n"
+            "--- a/config.py\n"
+            "+++ b/config.py\n"
+            "@@ -1 +1,2 @@\n"
+            "-old = 'value'\n"
+            "+key = 'AKIAIOSFODNN7EXAMPLEKEY'\n"
+            "+second = 'line'\n"
+        )
+        extracted = GitHistoryScanner._extract_added_lines(patch)
+        assert extracted == "key = 'AKIAIOSFODNN7EXAMPLEKEY'\nsecond = 'line'"

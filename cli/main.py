@@ -7,6 +7,7 @@ Commands:
   scan-path         Scan a directory tree for secrets
   scan-staged       Scan git staged files (pre-commit integration)
   scan-git          Scan git working tree
+  scan-git-history  Scan full git commit history
   validate-policy   Validate a policy YAML file
   generate-report   Generate a Markdown report from a previous scan's JSON output
   list-detectors    List all active regex detector patterns
@@ -227,6 +228,100 @@ def scan_git(ctx: click.Context, repo: str, depth: int | None) -> None:
     console.print(f"\n[green]Report written to:[/green] {saved_path}")
 
     _apply_fail_policy(classified, opts["fail_on"])
+
+
+@cli.command("scan-git-history")
+@click.option(
+    "--repo",
+    default=".",
+    type=click.Path(exists=True),
+    show_default=True,
+    help="Path to the git repository root.",
+)
+@click.option(
+    "--max-commits",
+    default=None,
+    type=int,
+    help="Maximum number of commits to scan. Default scans the full reachable history.",
+)
+@click.option(
+    "--branch",
+    default=None,
+    help="Branch or ref to scan. Defaults to the current HEAD.",
+)
+@click.option(
+    "--ignore-path",
+    "ignore_paths",
+    multiple=True,
+    help="Substring path filters to skip during history scanning.",
+)
+@click.option(
+    "--json-output",
+    is_flag=True,
+    default=False,
+    help="Emit the history scan report as JSON instead of a table.",
+)
+def scan_git_history(
+    repo: str,
+    max_commits: int | None,
+    branch: str | None,
+    ignore_paths: tuple[str, ...],
+    json_output: bool,
+) -> None:
+    """Scan full git history for secrets introduced by prior commits."""
+    try:
+        import git  # noqa: F401
+    except ImportError:
+        console.print(
+            "[red]Git history scanning requires GitPython in the active runtime.[/red]"
+        )
+        raise SystemExit(2)
+
+    from scanners.git_history_scanner import GitHistoryScanner
+
+    console.print(f"[bold]Scanning git history:[/bold] {repo}")
+
+    scanner = GitHistoryScanner(
+        repo_path=repo,
+        max_commits=max_commits,
+        branch=branch,
+        skip_paths=list(ignore_paths),
+    )
+    report = scanner.scan()
+
+    if json_output:
+        console.print_json(json.dumps(report.to_dict()))
+    else:
+        console.print(report.summary())
+        if report.findings:
+            table = Table(title="Git History Findings", show_lines=True)
+            table.add_column("Commit")
+            table.add_column("Author")
+            table.add_column("File")
+            table.add_column("Line", justify="right")
+            table.add_column("Rule")
+            table.add_column("Evidence")
+
+            for finding in report.findings[:50]:
+                table.add_row(
+                    finding.commit_sha[:12],
+                    finding.commit_author or "-",
+                    finding.file_path,
+                    str(finding.line_number),
+                    finding.rule_id,
+                    finding.evidence,
+                )
+
+            console.print(table)
+            if len(report.findings) > 50:
+                console.print(
+                    f"[yellow]Showing first 50 of {len(report.findings)} findings.[/yellow]"
+                )
+        else:
+            console.print("[green]No historical secrets detected.[/green]")
+
+    if report.findings:
+        raise SystemExit(1)
 
 
 @cli.command("validate-policy")
