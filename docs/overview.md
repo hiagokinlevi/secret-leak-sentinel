@@ -19,7 +19,7 @@ The tool uses two complementary detection techniques:
 
 ### Regex detection
 
-Curated regular expressions match known patterns for specific credential types. These patterns have high precision (low false positive rate) because the formats of AWS access keys, GitHub tokens, live Stripe keys, Twilio auth tokens, SendGrid API keys, PEM headers, and database URLs are well-defined.
+Curated regular expressions match known patterns for specific credential types. These patterns have high precision (low false positive rate) because the formats of AWS access keys, GitHub tokens, live Stripe keys, Twilio auth tokens, SendGrid API keys, Azure SAS URLs, Azure storage connection strings, GCP service-account JSON key indicators, PEM headers, and database URLs are well-defined.
 
 ### Entropy detection
 

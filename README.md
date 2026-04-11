@@ -17,7 +17,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 ## Features
 
 - **Regex detection** — curated patterns for AWS keys, GitHub tokens, PEM blocks, connection strings, password assignments, and more
-- **SaaS credential coverage** — detects live Stripe secret/restricted keys, Twilio auth tokens, and SendGrid API keys
+- **Cloud and SaaS credential coverage** — detects Azure SAS URLs, Azure storage connection strings, GCP service account JSON key indicators, live Stripe secret/restricted keys, Twilio auth tokens, and SendGrid API keys
 - **Entropy detection** — flags high-entropy strings that pattern matching alone might miss
 - **Git integration** — scan staged files, working tree, or commit history with gitpython
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
@@ -85,6 +85,9 @@ chmod +x .git/hooks/pre-commit
 | Stripe live key             | `sk_live_...`, `rk_live_...`          | CRITICAL    |
 | Twilio auth token           | `TWILIO_AUTH_TOKEN=...`               | CRITICAL    |
 | SendGrid API key            | `SG.<id>.<secret>`                    | CRITICAL    |
+| Azure SAS URL               | `https://...blob.core.windows.net/...?...&sig=...` | CRITICAL |
+| Azure storage connection string | `DefaultEndpointsProtocol=...;AccountKey=...` | CRITICAL |
+| GCP service account key JSON | `"private_key_id": "...", "client_email": "...gserviceaccount.com"` | CRITICAL / HIGH |
 | PEM Private Key             | `-----BEGIN ... PRIVATE KEY-----`      | CRITICAL    |
 | API key in assignment       | `api_key = "abc123..."`               | HIGH        |
 | Password in assignment      | `password = "mypassword"`             | HIGH        |
@@ -135,6 +138,14 @@ suppressions:
 - name: Secret scan
   run: k1n-sentinel scan-path . --fail-on high
 ```
+
+## Cloud credential notes
+
+`secret-leak-sentinel` now treats Azure SAS URLs, Azure storage
+connection strings, and GCP service account JSON key indicators as
+first-class high-signal detections. The regexes stay intentionally narrow so
+they catch production-shaped cloud credentials without broadly flagging
+ordinary query strings or unrelated JSON documents.
 
 ---
 

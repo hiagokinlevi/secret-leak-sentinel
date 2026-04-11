@@ -25,6 +25,7 @@ Usage
 """
 import fnmatch
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -50,6 +51,9 @@ _BINARY_EXTENSIONS = {
 # Maximum file size to scan in bytes (10 MB). Larger files are skipped to prevent
 # memory exhaustion when scanning repos with large assets.
 _MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
+_SUPPRESSION_FILE_PATTERN = re.compile(r'^\s*-\s*file:\s*["\']?([^"\']+)["\']?\s*$')
+_SUPPRESSION_INLINE_PATTERN = re.compile(r'^\s*file:\s*["\']?([^"\']+)["\']?\s*$')
 
 
 def _is_binary_file(path: Path) -> bool:
@@ -206,19 +210,32 @@ def _load_suppressed_files(suppression_file: str | Path) -> set[str]:
     Returns:
         Set of relative file path strings to suppress.
     """
-    import yaml
-
     path = Path(suppression_file)
     if not path.exists():
         logger.debug("Suppression file not found; no suppressions applied", path=str(path))
         return set()
 
-    with path.open() as f:
-        data = yaml.safe_load(f) or {}
+    try:
+        import yaml  # type: ignore
+
+        with path.open() as f:
+            data = yaml.safe_load(f) or {}
+
+        suppressed: set[str] = set()
+        for entry in data.get("suppressions", []):
+            if "file" in entry:
+                suppressed.add(entry["file"])
+        return suppressed
+    except ModuleNotFoundError:
+        logger.debug(
+            "PyYAML not available; falling back to line-based suppression parsing",
+            path=str(path),
+        )
 
     suppressed: set[str] = set()
-    for entry in data.get("suppressions", []):
-        if "file" in entry:
-            suppressed.add(entry["file"])
+    for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        match = _SUPPRESSION_FILE_PATTERN.match(raw_line) or _SUPPRESSION_INLINE_PATTERN.match(raw_line)
+        if match:
+            suppressed.add(match.group(1).strip())
 
     return suppressed

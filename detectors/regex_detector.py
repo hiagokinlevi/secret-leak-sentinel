@@ -22,6 +22,7 @@ class SecretType(str, Enum):
     API_TOKEN = "api_token"
     AWS_ACCESS_KEY = "aws_access_key"
     AWS_SECRET_KEY = "aws_secret_key"
+    CLOUD_CREDENTIAL = "cloud_credential"
     GITHUB_TOKEN = "github_token"
     STRIPE_KEY = "stripe_key"
     TWILIO_TOKEN = "twilio_token"
@@ -96,6 +97,45 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
         secret_type=SecretType.SENDGRID_KEY,
         criticality=Criticality.CRITICAL,
         description="SendGrid API key",
+    ),
+    DetectorPattern(
+        name="azure_sas_url",
+        pattern=(
+            r"""(?ix)
+            https?://[^\s"'?]+\?
+            (?=[^\s"']*\bsv=)
+            (?=[^\s"']*\b(?:sig|se|sp)=)
+            [^\s"']*\bsig=[A-Za-z0-9%/+]{16,}[^\s"']*
+            """
+        ),
+        secret_type=SecretType.CLOUD_CREDENTIAL,
+        criticality=Criticality.CRITICAL,
+        description="Azure SAS URL with signed access token parameters",
+    ),
+    DetectorPattern(
+        name="azure_storage_connection_string",
+        pattern=(
+            r"(?i)\bDefaultEndpointsProtocol=https?;"
+            r"AccountName=[^;]+;"
+            r"AccountKey=[^;\"'\s]+"
+        ),
+        secret_type=SecretType.CONNECTION_STRING,
+        criticality=Criticality.CRITICAL,
+        description="Azure storage connection string with AccountKey",
+    ),
+    DetectorPattern(
+        name="gcp_service_account_private_key_id",
+        pattern=r'"private_key_id"\s*:\s*"[a-f0-9]{40}"',
+        secret_type=SecretType.CLOUD_CREDENTIAL,
+        criticality=Criticality.CRITICAL,
+        description="GCP service account JSON private_key_id field",
+    ),
+    DetectorPattern(
+        name="gcp_service_account_client_email",
+        pattern=r'"client_email"\s*:\s*"[^"]+@[^"]+\.iam\.gserviceaccount\.com"',
+        secret_type=SecretType.CLOUD_CREDENTIAL,
+        criticality=Criticality.HIGH,
+        description="GCP service account JSON client_email field",
     ),
     DetectorPattern(
         name="pem_private_key",

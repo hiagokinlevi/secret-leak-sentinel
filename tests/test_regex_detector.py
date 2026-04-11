@@ -130,6 +130,66 @@ class TestSaaSTokenDetection:
         assert "b" * 43 not in sendgrid.masked_excerpt
 
 
+class TestCloudCredentialDetection:
+    """Tests for Azure and GCP cloud credential patterns."""
+
+    def test_detects_azure_sas_url(self):
+        content = (
+            "BLOB_URL=https://storageacct.blob.core.windows.net/backups/app.db"
+            "?sv=2024-01-01&sr=b&sp=r&se=2030-01-01T00:00:00Z"
+            "&sig=AbCdEfGhIjKlMnOpQrStUvWxYz0123456789%2F"
+        )
+        findings = scan_content(content, ".env")
+        sas = [f for f in findings if f.detector_name == "azure_sas_url"]
+        assert len(sas) == 1
+        assert sas[0].criticality == Criticality.CRITICAL
+        assert sas[0].secret_type == SecretType.CLOUD_CREDENTIAL
+
+    def test_does_not_flag_azure_url_without_sig(self):
+        content = (
+            "BLOB_URL=https://storageacct.blob.core.windows.net/backups/app.db"
+            "?sv=2024-01-01&sr=b&sp=r&se=2030-01-01T00:00:00Z"
+        )
+        findings = scan_content(content, ".env.example")
+        assert not any(f.detector_name == "azure_sas_url" for f in findings)
+
+    def test_detects_azure_storage_connection_string(self):
+        content = (
+            "AZURE_STORAGE_CONNECTION_STRING="
+            "DefaultEndpointsProtocol=https;AccountName=sampleacct;"
+            "AccountKey=" + "A" * 86 + "==;EndpointSuffix=core.windows.net"
+        )
+        findings = scan_content(content, "settings.env")
+        conn = [f for f in findings if f.detector_name == "azure_storage_connection_string"]
+        assert len(conn) == 1
+        assert conn[0].criticality == Criticality.CRITICAL
+        assert conn[0].secret_type == SecretType.CONNECTION_STRING
+
+    def test_detects_gcp_service_account_private_key_id(self):
+        content = '{"private_key_id": "' + ("a" * 40) + '"}'
+        findings = scan_content(content, "service-account.json")
+        key_id = [f for f in findings if f.detector_name == "gcp_service_account_private_key_id"]
+        assert len(key_id) == 1
+        assert key_id[0].criticality == Criticality.CRITICAL
+        assert key_id[0].secret_type == SecretType.CLOUD_CREDENTIAL
+
+    def test_detects_gcp_service_account_client_email(self):
+        content = '{"client_email": "sentinel@demo-project.iam.gserviceaccount.com"}'
+        findings = scan_content(content, "service-account.json")
+        client_email = [f for f in findings if f.detector_name == "gcp_service_account_client_email"]
+        assert len(client_email) == 1
+        assert client_email[0].criticality == Criticality.HIGH
+        assert client_email[0].secret_type == SecretType.CLOUD_CREDENTIAL
+
+    def test_cloud_credentials_are_masked(self):
+        content = '{"private_key_id": "' + ("b" * 40) + '"}'
+        findings = scan_content(content, "service-account.json")
+        key_id = next(
+            f for f in findings if f.detector_name == "gcp_service_account_private_key_id"
+        )
+        assert ("b" * 40) not in key_id.masked_excerpt
+
+
 class TestPEMPrivateKeyDetection:
     """Tests for the pem_private_key detector pattern."""
 
@@ -251,3 +311,14 @@ class TestScanContent:
         gh_findings = [f for f in findings if f.detector_name == "github_personal_access_token"]
         assert aws_findings[0].line_number == 1
         assert gh_findings[0].line_number == 3
+
+    def test_multiple_cloud_findings_on_one_line(self):
+        """Specific cloud patterns should coexist without suppressing each other."""
+        content = (
+            '{"private_key_id": "' + ("c" * 40) + '", '
+            '"client_email": "sentinel@demo-project.iam.gserviceaccount.com"}'
+        )
+        findings = scan_content(content, "service-account.json")
+        detector_names = {f.detector_name for f in findings}
+        assert "gcp_service_account_private_key_id" in detector_names
+        assert "gcp_service_account_client_email" in detector_names

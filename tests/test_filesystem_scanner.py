@@ -145,10 +145,11 @@ class TestScanDirectory:
         secret_file.write_text('key = "AKIAIOSFODNN7EXAMPLE"\n', encoding="utf-8")
 
         # Create a suppression file that excludes fixture.py
-        import yaml
         suppression_path = tmp_path / ".k1n-suppressions.yaml"
         suppression_path.write_text(
-            yaml.dump({"suppressions": [{"file": "fixture.py", "reason": "test fixture"}]}),
+            "suppressions:\n"
+            '  - file: "fixture.py"\n'
+            '    reason: "test fixture"\n',
             encoding="utf-8",
         )
 
@@ -170,3 +171,20 @@ class TestScanDirectory:
         regex_findings, _ = scan_directory(str(tmp_path), entropy_enabled=False)
         # No findings expected, but scan should complete without error
         assert isinstance(regex_findings, list)
+
+    def test_finds_gcp_service_account_json_fields(self, tmp_path):
+        """A synthetic GCP service-account JSON file should be detected during a real scan."""
+        sa_file = tmp_path / "service-account.json"
+        sa_file.write_text(
+            '{\n'
+            '  "type": "service_account",\n'
+            '  "private_key_id": "' + ("a" * 40) + '",\n'
+            '  "client_email": "sentinel@demo-project.iam.gserviceaccount.com"\n'
+            '}\n',
+            encoding="utf-8",
+        )
+
+        regex_findings, _ = scan_directory(str(tmp_path), entropy_enabled=False)
+        detector_names = {f.detector_name for f in regex_findings}
+        assert "gcp_service_account_private_key_id" in detector_names
+        assert "gcp_service_account_client_email" in detector_names
