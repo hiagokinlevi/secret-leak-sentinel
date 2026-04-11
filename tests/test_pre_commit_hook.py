@@ -5,7 +5,7 @@ Comprehensive test suite for the pre-commit secret scanning hook.
 
 Covers:
   - Clean files produce exit_code 0
-  - Detection of every built-in pattern (SC-001 through SC-006)
+  - Detection of every built-in pattern (SC-001 through SC-007)
   - Severity ordering and comparison via SeverityLevel
   - HookConfig.fail_level property including unknown/edge-case values
   - skip_paths and skip_extensions filtering
@@ -43,6 +43,8 @@ _FAKE_GHO = "gho_" + "x" * 40
 _FAKE_GHS = "ghs_" + "x" * 40
 _FAKE_GITHUB_PAT = "github_pat_" + "A" * 22 + "_" + "B" * 59
 _FAKE_STRIPE = "sk_live_" + "aBcDeFgHiJkLmNoPqRsTuVwX"
+_FAKE_SLACK_BOT = "xoxb-" + "123456789012-" + "123456789012-" + "abcdefghijklmnopqrstuvwx"
+_FAKE_SLACK_APP = "xapp-1-" + "ABCD1234EFGH5678-" + "IJKL9012MNOP3456-" + "qrstuvwxyzabcdef"
 
 
 # =============================================================================
@@ -314,7 +316,7 @@ class TestPasswordPatternDetection:
         """MEDIUM finding must NOT block when fail_on_severity=HIGH."""
         cfg = HookConfig(fail_on_severity="HIGH")
         hook = PreCommitHook(cfg)
-        # SC-004 is MEDIUM; SC-001/002/003/006 are CRITICAL/HIGH — only use a
+        # SC-004 is MEDIUM; SC-001/002/003/006/007 are CRITICAL/HIGH — only use a
         # pattern that exclusively matches MEDIUM
         content = "api_key = 'shortshortshortshortkey1'"
         result = hook.scan_files({"config.ini": content})
@@ -366,6 +368,29 @@ class TestStripeLiveKeyDetection:
     def test_stripe_live_key_blocks_with_high_threshold(self):
         hook = PreCommitHook(HookConfig(fail_on_severity="HIGH"))
         result = hook.scan_files({"billing.py": f"STRIPE_KEY = {_FAKE_STRIPE}"})
+        assert result.is_blocked is True
+
+
+# =============================================================================
+# SC-007 — Slack token (HIGH)
+# =============================================================================
+
+class TestSlackTokenDetection:
+    """Tests for SC-007: Slack bearer and app-level tokens (HIGH)."""
+
+    def test_slack_bearer_token_detected(self):
+        hook = PreCommitHook()
+        result = hook.scan_files({"slack.env": f"SLACK_BOT_TOKEN={_FAKE_SLACK_BOT}"})
+        assert result.total_findings >= 1
+
+    def test_slack_app_token_detected(self):
+        hook = PreCommitHook()
+        result = hook.scan_files({"slack.env": f"SLACK_APP_TOKEN={_FAKE_SLACK_APP}"})
+        assert result.total_findings >= 1
+
+    def test_slack_token_blocks_with_high_threshold(self):
+        hook = PreCommitHook(HookConfig(fail_on_severity="HIGH"))
+        result = hook.scan_files({"slack.env": _FAKE_SLACK_BOT})
         assert result.is_blocked is True
 
 
@@ -630,11 +655,12 @@ class TestMultiplePatternsInFile:
         content = (
             _FAKE_AWS + "\n"      # CRITICAL (SC-001)
             + _FAKE_STRIPE + "\n" # HIGH (SC-006)
+            + _FAKE_SLACK_BOT + "\n" # HIGH (SC-007)
         )
         result = hook.scan_files({"mixed.py": content})
         file_res = result.file_results[0]
         assert file_res.severity_counts.get("CRITICAL", 0) >= 1
-        assert file_res.severity_counts.get("HIGH", 0) >= 1
+        assert file_res.severity_counts.get("HIGH", 0) >= 2
 
 
 # =============================================================================
@@ -679,8 +705,9 @@ class TestMultiFileScanning:
         cfg = HookConfig(fail_on_severity="CRITICAL")
         hook = PreCommitHook(cfg)
         files = {
-            # SC-006 is HIGH, not CRITICAL — should NOT block under CRITICAL threshold
-            "pay.py": _FAKE_STRIPE + "\n",
+            # SC-006 and SC-007 are HIGH, not CRITICAL — should NOT block
+            # under a CRITICAL threshold.
+            "pay.py": _FAKE_STRIPE + "\n" + _FAKE_SLACK_BOT + "\n",
         }
         result = hook.scan_files(files)
         assert result.is_blocked is False

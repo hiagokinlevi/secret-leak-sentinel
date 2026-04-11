@@ -134,6 +134,20 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
         description="SendGrid API key",
     ),
     DetectorPattern(
+        name="slack_bearer_token",
+        pattern=r"\bxox(?:a|b|p|r|s)-[A-Za-z0-9-]{24,}\b",
+        secret_type=SecretType.API_TOKEN,
+        criticality=Criticality.CRITICAL,
+        description="Slack bearer token (bot, user, admin, config, or refresh)",
+    ),
+    DetectorPattern(
+        name="slack_app_token",
+        pattern=r"\bxapp-\d-[A-Za-z0-9-]{24,}\b",
+        secret_type=SecretType.API_TOKEN,
+        criticality=Criticality.CRITICAL,
+        description="Slack app-level token",
+    ),
+    DetectorPattern(
         name="azure_sas_url",
         pattern=(
             r"""(?ix)

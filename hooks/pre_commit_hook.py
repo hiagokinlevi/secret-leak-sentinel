@@ -247,6 +247,14 @@ _BUILTIN_PATTERNS: List[Tuple[str, str, re.Pattern]] = [
 
     # Stripe live-mode secret key — sk_live_ prefix is unambiguous.
     ("SC-006", "HIGH", re.compile(r"sk_live_[A-Za-z0-9]{24,}")),
+
+    # Slack bearer and app-level tokens. These prefixes are specific to Slack's
+    # API credentials and are safe to block at HIGH severity in commit hooks.
+    (
+        "SC-007",
+        "HIGH",
+        re.compile(r"\b(?:xox(?:a|b|p|r|s)-[A-Za-z0-9-]{24,}|xapp-\d-[A-Za-z0-9-]{24,})\b"),
+    ),
 ]
 
 

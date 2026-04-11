@@ -17,6 +17,10 @@ from detectors.regex_detector import (
 )
 
 
+_FAKE_SLACK_BOT = "xoxb-" + "123456789012-" + "123456789012-" + "abcdefghijklmnopqrstuvwx"
+_FAKE_SLACK_APP = "xapp-1-" + "ABCD1234EFGH5678-" + "IJKL9012MNOP3456-" + "qrstuvwxyzabcdef"
+
+
 class TestAWSAccessKeyDetection:
     """Tests for the aws_access_key_id detector pattern."""
 
@@ -174,11 +178,36 @@ class TestSaaSTokenDetection:
         assert sendgrid[0].criticality == Criticality.CRITICAL
         assert sendgrid[0].secret_type == SecretType.SENDGRID_KEY
 
+    @pytest.mark.parametrize(
+        ("detector_name", "token"),
+        [
+            ("slack_bearer_token", _FAKE_SLACK_BOT),
+            ("slack_app_token", _FAKE_SLACK_APP),
+        ],
+    )
+    def test_detects_slack_tokens(self, detector_name: str, token: str):
+        findings = scan_content(f"SLACK_TOKEN={token}", ".env")
+        slack_findings = [f for f in findings if f.detector_name == detector_name]
+        assert len(slack_findings) == 1
+        assert slack_findings[0].criticality == Criticality.CRITICAL
+        assert slack_findings[0].secret_type == SecretType.API_TOKEN
+
+    def test_does_not_flag_short_slack_token(self):
+        findings = scan_content("SLACK_TOKEN=xoxb-short-example", ".env.example")
+        slack_findings = [f for f in findings if f.detector_name == "slack_bearer_token"]
+        assert slack_findings == []
+
     def test_saas_tokens_are_masked(self):
         content = "SENDGRID_API_KEY=SG." + "a" * 22 + "." + "b" * 43
         findings = scan_content(content, ".env")
         sendgrid = next(f for f in findings if f.detector_name == "sendgrid_api_key")
         assert "b" * 43 not in sendgrid.masked_excerpt
+
+    def test_slack_token_is_masked(self):
+        token = _FAKE_SLACK_BOT
+        findings = scan_content(f"SLACK_BOT_TOKEN={token}", ".env")
+        slack = next(f for f in findings if f.detector_name == "slack_bearer_token")
+        assert token not in slack.masked_excerpt
 
 
 class TestCloudCredentialDetection:
