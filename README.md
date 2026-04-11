@@ -23,8 +23,10 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
 - **Pre-push hook** — scans outgoing commit patches so `--no-verify` commits still get a last defensive check
 - **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
+- **VS Code extension scaffold** — a local editor integration runs `scan-file --json-output` and turns findings into inline diagnostics
 - **Criticality classification** — multi-signal classifier assigns final severity and confidence scores
 - **Rich terminal output** — colour-coded findings table via the `rich` library
+- **Structured JSON output for file scans** — stable machine-readable payload for editor and automation integrations
 - **Markdown reports** — structured output for code review, compliance, and tracking
 - **Suppression file** — silence known-safe findings with a YAML suppression list
 - **Policy profiles** — developer, ci, and strict modes with configurable thresholds
@@ -72,6 +74,12 @@ secret-leak-sentinel scan-git-history --repo ./my-project --max-commits 50
 
 ```bash
 secret-leak-sentinel scan-file ./changes.diff --patch-mode
+```
+
+### Scan a file and emit JSON
+
+```bash
+secret-leak-sentinel scan-file ./app/settings.py --json-output
 ```
 
 ### Install the pre-commit hook
@@ -186,6 +194,21 @@ jobs:
 ```
 
 The repository now includes a composite GitHub Action in [`action.yml`](action.yml). It installs `secret-leak-sentinel`, validates the requested subcommand and root CLI options without invoking a shell, runs inside the workflow workspace, and publishes the newest Markdown, CSV, and HTML report paths as step outputs for downstream upload or notification steps.
+
+## VS Code integration
+
+The repository now includes a starter extension under
+[`integrations/vscode`](integrations/vscode). It shells out to the local
+`secret-leak-sentinel` binary, runs `scan-file --json-output` against the
+active file, and surfaces the returned findings as diagnostics inline.
+
+Local validation:
+
+```bash
+cd integrations/vscode
+npm run check
+npm test
+```
 
 ## Cloud credential notes
 

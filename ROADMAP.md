@@ -43,7 +43,7 @@ Planned development direction for `secret-leak-sentinel`.
 
 ## v0.4 — IDE and editor integration
 
-- [ ] VS Code extension (calls CLI and surfaces findings inline)
+- [x] VS Code extension (calls CLI and surfaces findings inline)
 - [x] Pre-push hook in addition to pre-commit
 - [x] GitHub Actions marketplace action
 
