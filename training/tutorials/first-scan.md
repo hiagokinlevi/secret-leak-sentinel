@@ -20,7 +20,7 @@ pip install -e ".[dev]"
 Verify:
 
 ```bash
-k1n-sentinel --help
+secret-leak-sentinel --help
 ```
 
 ## Step 2: Configure
@@ -34,7 +34,7 @@ The defaults are sensible for a first scan. Leave them as-is.
 ## Step 3: See what detectors are active
 
 ```bash
-k1n-sentinel list-detectors
+secret-leak-sentinel list-detectors
 ```
 
 This shows all regex patterns the tool will use during scanning.
@@ -42,7 +42,7 @@ This shows all regex patterns the tool will use during scanning.
 ## Step 4: Scan a directory
 
 ```bash
-k1n-sentinel scan-path ./my-project
+secret-leak-sentinel scan-path ./my-project
 ```
 
 You'll see a colour-coded table of findings (if any) and a line like:
@@ -86,14 +86,14 @@ For each genuine finding:
 3. If it was committed to git, rewrite the history
 
 For false positives:
-1. Add a suppression entry to `.k1n-suppressions.yaml`
+1. Add a suppression entry to `.secret-leak-suppressions.yaml`
 
 ## Step 8: Install the pre-commit hook
 
 Prevent future leaks at the source:
 
 ```bash
-cp hooks/pre-commit/k1n-secret-check .git/hooks/pre-commit
+cp hooks/pre-commit/secret-leak-check .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
 

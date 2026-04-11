@@ -42,7 +42,7 @@ dev = [
 
 [project.scripts]
 # Main CLI entry point registered by pyproject.toml
-k1n-sentinel = "secret_leak_sentinel_cli:cli"
+secret-leak-sentinel = "secret_leak_sentinel_cli:cli"
 
 [tool.setuptools]
 py-modules = ["secret_leak_sentinel_cli", "structlog"]

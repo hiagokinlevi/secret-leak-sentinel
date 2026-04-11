@@ -118,7 +118,7 @@ git push --force --all
 
 ## Preventing recurrence
 
-- Install the pre-commit hook: `cp hooks/pre-commit/k1n-secret-check .git/hooks/pre-commit`
+- Install the pre-commit hook: `cp hooks/pre-commit/secret-leak-check .git/hooks/pre-commit`
 - Use a secrets manager for all credentials — never store them in source files
 - Set `FAIL_ON_SEVERITY=high` in CI to block pipelines that introduce new secrets
-- Review findings weekly via `k1n-sentinel scan-git --repo . --depth 50`
+- Review findings weekly via `secret-leak-sentinel scan-git --repo . --depth 50`

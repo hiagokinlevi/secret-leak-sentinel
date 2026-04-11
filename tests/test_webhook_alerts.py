@@ -200,7 +200,7 @@ class TestBuildPagerdutyPayload:
 
     def test_dedup_key_prefix(self):
         payload = build_pagerduty_payload([_make_finding()], ".", self.cfg)
-        assert payload["dedup_key"].startswith("k1n-sentinel")
+        assert payload["dedup_key"].startswith("secret-leak-sentinel")
 
     def test_custom_dedup_suffix(self):
         payload = build_pagerduty_payload([_make_finding()], ".", self.cfg, dedup_suffix="abc123")

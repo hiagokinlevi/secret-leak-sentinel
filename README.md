@@ -2,7 +2,7 @@
 
 **Secret detection and prevention for repositories, pipelines, configs, and logs — scan, classify, and prevent credential exposure.**
 
-`secret-leak-sentinel` is a developer-first CLI tool that scans codebases, configuration files, CI pipelines, and git history for accidentally committed secrets. It combines regex-based pattern matching with Shannon entropy analysis, classifies findings by criticality, and integrates with pre-commit hooks to prevent secrets from entering your repository in the first place.
+`secret-leak-sentinel` is a developer-first CLI tool that scans codebases, configuration files, CI pipelines, git patches, and git history for accidentally committed secrets. It combines regex-based pattern matching with Shannon entropy analysis, classifies findings by criticality, and integrates with pre-commit and pre-push hooks to prevent secrets from leaving your repository in the first place.
 
 ---
 
@@ -21,6 +21,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **Entropy detection** — flags high-entropy strings that pattern matching alone might miss
 - **Git integration** — scan staged files, working tree, or full commit history with commit-level attribution and blob deduplication
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
+- **Pre-push hook** — scans outgoing commit patches so `--no-verify` commits still get a last defensive check
 - **Criticality classification** — multi-signal classifier assigns final severity and confidence scores
 - **Rich terminal output** — colour-coded findings table via the `rich` library
 - **Markdown reports** — structured output for code review, compliance, and tracking
@@ -45,32 +46,45 @@ dependencies, the repository also supports an offline editable install:
 ```bash
 python -m venv --system-site-packages .venv
 .venv/bin/python -m pip install -e . --no-deps --no-build-isolation
-.venv/bin/k1n-sentinel --help
+.venv/bin/secret-leak-sentinel --help
 ```
 
 ### Scan a directory
 
 ```bash
-k1n-sentinel scan-path ./my-project
+secret-leak-sentinel scan-path ./my-project
 ```
 
 ### Scan staged files (pre-commit integration)
 
 ```bash
-k1n-sentinel scan-staged
+secret-leak-sentinel scan-staged
 ```
 
 ### Scan git history
 
 ```bash
-k1n-sentinel scan-git-history --repo ./my-project --max-commits 50
+secret-leak-sentinel scan-git-history --repo ./my-project --max-commits 50
+```
+
+### Scan a patch file
+
+```bash
+secret-leak-sentinel scan-file ./changes.diff --patch-mode
 ```
 
 ### Install the pre-commit hook
 
 ```bash
-cp hooks/pre-commit/k1n-secret-check .git/hooks/pre-commit
+cp hooks/pre-commit/secret-leak-check .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
+```
+
+### Install the pre-push hook
+
+```bash
+cp hooks/pre-push/secret-leak-check-push .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
 ```
 
 ---
@@ -122,7 +136,7 @@ Key settings:
 
 ## Suppressing false positives
 
-Create `.k1n-suppressions.yaml` in your project root:
+Create `.secret-leak-suppressions.yaml` in your project root:
 
 ```yaml
 suppressions:
@@ -140,7 +154,7 @@ suppressions:
 ```yaml
 # .github/workflows/secret-scan.yml
 - name: Secret scan
-  run: k1n-sentinel scan-path . --fail-on high
+  run: secret-leak-sentinel scan-path . --fail-on high
 ```
 
 ## Cloud credential notes

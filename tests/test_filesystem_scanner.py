@@ -145,7 +145,7 @@ class TestScanDirectory:
         secret_file.write_text('key = "AKIAIOSFODNN7EXAMPLE"\n', encoding="utf-8")
 
         # Create a suppression file that excludes fixture.py
-        suppression_path = tmp_path / ".k1n-suppressions.yaml"
+        suppression_path = tmp_path / ".secret-leak-suppressions.yaml"
         suppression_path.write_text(
             "suppressions:\n"
             '  - file: "fixture.py"\n'

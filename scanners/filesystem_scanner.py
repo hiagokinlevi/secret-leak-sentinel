@@ -205,7 +205,7 @@ def _load_suppressed_files(suppression_file: str | Path) -> set[str]:
     Load the list of suppressed file paths from a YAML suppression file.
 
     Args:
-        suppression_file: Path to .k1n-suppressions.yaml or equivalent.
+        suppression_file: Path to .secret-leak-suppressions.yaml or equivalent.
 
     Returns:
         Set of relative file path strings to suppress.

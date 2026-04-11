@@ -26,7 +26,7 @@ Usage:
         url="https://hooks.slack.com/services/T000/B000/xxxx",
         channel=AlertChannel.SLACK,
         severity_threshold="high",   # alert on HIGH and CRITICAL
-        source_label="CI / k1n-sentinel",
+        source_label="CI / secret-leak-sentinel",
     )
 
     result = send_alert(classified_findings, scan_path="./my-repo", config=cfg, dry_run=True)
@@ -100,11 +100,11 @@ class WebhookConfig:
                              ('low', 'medium', 'high', 'critical') or Criticality
                              enum value. Default: 'high'.
         source_label:        Human-readable source identifier shown in alert
-                             body (e.g., 'CI / k1n-sentinel', 'Dev laptop').
+                             body (e.g., 'CI / secret-leak-sentinel', 'Dev laptop').
         routing_key:         PagerDuty integration key (required for PAGERDUTY
                              channel). Ignored for Slack.
         dedup_key_prefix:    PagerDuty dedup key prefix for alert de-duplication.
-                             Default: 'k1n-sentinel'.
+                             Default: 'secret-leak-sentinel'.
         timeout_seconds:     HTTP request timeout. Default: 10.
     """
     url:                str
@@ -112,7 +112,7 @@ class WebhookConfig:
     severity_threshold: str | Criticality  = "high"
     source_label:       str                = "secret-leak-sentinel"
     routing_key:        Optional[str]      = None
-    dedup_key_prefix:   str                = "k1n-sentinel"
+    dedup_key_prefix:   str                = "secret-leak-sentinel"
     timeout_seconds:    int                = 10
 
     def threshold_criticality(self) -> Criticality:
@@ -302,7 +302,7 @@ def build_pagerduty_payload(
         "dedup_key": dedup_key,
         "payload": {
             "summary": (
-                f"[k1n-sentinel] {len(findings)} secret(s) detected in {scan_path} "
+                f"[secret-leak-sentinel] {len(findings)} secret(s) detected in {scan_path} "
                 f"— worst severity: {worst.final_criticality.value.upper()}"
             ),
             "source":    config.source_label,

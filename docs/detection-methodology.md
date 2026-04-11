@@ -84,7 +84,7 @@ After classification, each finding is compared against the configured policy pro
 False positives are inevitable with any static analysis tool. Manage them using the suppression file:
 
 ```yaml
-# .k1n-suppressions.yaml
+# .secret-leak-suppressions.yaml
 suppressions:
   - file: "tests/fixtures/aws_test_data.py"
     reason: "Synthetic test credentials — not real AWS keys"

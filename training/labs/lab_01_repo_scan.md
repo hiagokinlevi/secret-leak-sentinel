@@ -60,7 +60,7 @@ git commit -m "initial commit"
 Scan the sample repository:
 
 ```bash
-k1n-sentinel scan-path /tmp/sample-vulnerable-repo
+secret-leak-sentinel scan-path /tmp/sample-vulnerable-repo
 ```
 
 **Questions:**
@@ -77,7 +77,7 @@ k1n-sentinel scan-path /tmp/sample-vulnerable-repo
 Run the scan with verbose entropy output:
 
 ```bash
-k1n-sentinel scan-path /tmp/sample-vulnerable-repo \
+secret-leak-sentinel scan-path /tmp/sample-vulnerable-repo \
   --entropy \
   --entropy-threshold 3.5
 ```
@@ -99,7 +99,7 @@ The `docs/setup-guide.md` findings are documentation examples, not real secrets.
 Create a suppression file:
 
 ```bash
-cat > /tmp/sample-vulnerable-repo/.k1n-suppressions.yaml << 'EOF'
+cat > /tmp/sample-vulnerable-repo/.secret-leak-suppressions.yaml << 'EOF'
 suppressions:
   - file: "docs/setup-guide.md"
     reason: "Documentation examples only — no real credentials"
@@ -109,7 +109,7 @@ EOF
 Re-run the scan and confirm the file is excluded:
 
 ```bash
-k1n-sentinel scan-path /tmp/sample-vulnerable-repo
+secret-leak-sentinel scan-path /tmp/sample-vulnerable-repo
 ```
 
 ---
@@ -119,7 +119,7 @@ k1n-sentinel scan-path /tmp/sample-vulnerable-repo
 Install the hook and try to commit a file containing a synthetic secret:
 
 ```bash
-cp /path/to/secret-leak-sentinel/hooks/pre-commit/k1n-secret-check \
+cp /path/to/secret-leak-sentinel/hooks/pre-commit/secret-leak-check \
    /tmp/sample-vulnerable-repo/.git/hooks/pre-commit
 chmod +x /tmp/sample-vulnerable-repo/.git/hooks/pre-commit
 

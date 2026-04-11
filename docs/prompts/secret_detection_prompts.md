@@ -44,7 +44,7 @@ I have a false positive finding from secret-leak-sentinel:
 - Detector: [detector name]
 - Reason it's a false positive: [explain]
 
-Please write a valid .k1n-suppressions.yaml entry for this finding.
+Please write a valid .secret-leak-suppressions.yaml entry for this finding.
 ```
 
 ---

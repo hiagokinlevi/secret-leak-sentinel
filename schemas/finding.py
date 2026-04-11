@@ -112,7 +112,7 @@ class EntropyFinding(BaseModel):
 
 class SuppressedFinding(BaseModel):
     """
-    A suppression rule loaded from .k1n-suppressions.yaml.
+    A suppression rule loaded from .secret-leak-suppressions.yaml.
 
     Matches against findings to decide which should be silenced.
     """
