@@ -1,7 +1,7 @@
 """
 secret-leak-sentinel CLI
 ==============================
-Main Click command group. Entry point is `k1n-sentinel` (defined in pyproject.toml).
+Main Click command group. Entry point is `secret-leak-sentinel` (defined in pyproject.toml).
 
 Commands:
   scan-path         Scan a directory tree for secrets
@@ -147,6 +147,57 @@ def scan_path(ctx: click.Context, path: str, ignore: tuple) -> None:
     console.print(f"\n[green]Report written to:[/green] {saved_path}")
 
     # Exit non-zero if fail_on threshold is met
+    _apply_fail_policy(classified, opts["fail_on"])
+
+
+@cli.command("scan-file")
+@click.argument("path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--patch-mode/--no-patch-mode",
+    default=False,
+    show_default=True,
+    help="Interpret the input as a unified diff and scan only added lines.",
+)
+@click.pass_context
+def scan_file(ctx: click.Context, path: str, patch_mode: bool) -> None:
+    """
+    Scan a single file for secrets.
+
+    When --patch-mode is enabled, PATH is treated as a unified diff file and
+    only added lines are scanned. This is useful for pre-push workflows.
+    """
+    from classifiers.criticality_classifier import classify_all
+    from detectors.entropy_detector import scan_content_for_entropy
+    from detectors.regex_detector import scan_content
+    from scanners.patch_scanner import scan_patch_file
+
+    opts = ctx.obj
+    target = "patch file" if patch_mode else "file"
+    console.print(f"\n[bold]Scanning {target}:[/bold] {path}")
+
+    if patch_mode:
+        regex_findings, entropy_findings = scan_patch_file(
+            path,
+            entropy_enabled=opts["entropy_enabled"],
+            entropy_threshold=opts["entropy_threshold"],
+        )
+    else:
+        content = Path(path).read_text(encoding="utf-8", errors="replace")
+        regex_findings = scan_content(content, path)
+        entropy_findings = []
+        if opts["entropy_enabled"]:
+            entropy_findings = scan_content_for_entropy(
+                content,
+                path,
+                threshold=opts["entropy_threshold"],
+            )
+
+    classified = classify_all(regex_findings, entropy_findings)
+    if classified:
+        _print_findings_table(classified)
+    else:
+        console.print("[green]No secrets detected.[/green]")
+
     _apply_fail_policy(classified, opts["fail_on"])
 
 
