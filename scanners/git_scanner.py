@@ -52,6 +52,36 @@ def _get_repo(repo_path: str | Path) -> Repo:
         raise
 
 
+def _is_safe_working_tree_file(file_path: Path, root: Path) -> bool:
+    """
+    Return True when *file_path* is a regular in-repo file safe to scan.
+
+    Working tree scans must not follow symlinks, which can redirect the scanner
+    outside the repository root.
+    """
+    if file_path.is_symlink():
+        logger.debug("Symlinked working tree file skipped", path=str(file_path))
+        return False
+
+    try:
+        resolved_path = file_path.resolve(strict=True)
+    except OSError as exc:
+        logger.warning("Could not resolve file", path=str(file_path), error=str(exc))
+        return False
+
+    try:
+        resolved_path.relative_to(root)
+    except ValueError:
+        logger.warning(
+            "Working tree file resolved outside repository root; skipping",
+            path=str(file_path),
+            resolved_path=str(resolved_path),
+        )
+        return False
+
+    return resolved_path.is_file()
+
+
 def scan_staged_files(
     repo_path: str | Path = ".",
     entropy_enabled: bool = True,
@@ -146,7 +176,7 @@ def scan_working_tree(
         Tuple of (regex_findings, entropy_findings).
     """
     repo = _get_repo(repo_path)
-    root = Path(repo.working_dir)
+    root = Path(repo.working_dir).resolve()
     regex_findings: list[Finding] = []
     entropy_findings: list[EntropyFinding] = []
     files_scanned = 0
@@ -165,7 +195,10 @@ def scan_working_tree(
             if len(parts) > depth + 1:
                 continue
 
-        if not file_path.exists() or not file_path.is_file():
+        if not file_path.exists():
+            continue
+
+        if not _is_safe_working_tree_file(file_path, root):
             continue
 
         try:
