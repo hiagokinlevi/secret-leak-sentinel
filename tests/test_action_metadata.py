@@ -21,7 +21,7 @@ def test_action_metadata_invokes_validated_entrypoint() -> None:
 
     setup_step = next(step for step in steps if step["name"] == "Set up Python")
     install_step = next(step for step in steps if step["name"] == "Install secret-leak-sentinel")
-    run_step = next(step for step in steps if step["id"] == "run")
+    run_step = next(step for step in steps if step.get("id") == "run")
 
     assert setup_step["uses"] == "actions/setup-python@v5"
     assert 'python -m pip install "${{ github.action_path }}"' in install_step["run"]
