@@ -54,7 +54,7 @@ class TestAWSAccessKeyDetection:
 
 
 class TestGitHubTokenDetection:
-    """Tests for the github_personal_access_token and github_oauth_token patterns."""
+    """Tests for the GitHub token detector patterns."""
 
     def test_detects_synthetic_github_pat(self):
         """A synthetic GitHub PAT should produce a CRITICAL finding."""
@@ -71,13 +71,48 @@ class TestGitHubTokenDetection:
         gho_findings = [f for f in findings if f.detector_name == "github_oauth_token"]
         assert len(gho_findings) == 1
 
+    def test_detects_synthetic_github_fine_grained_pat(self):
+        """A synthetic GitHub fine-grained PAT should produce a CRITICAL finding."""
+        content = (
+            "token=github_pat_"
+            "AAAAAAAAAAAAAAAAAAAAAA_"
+            "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+        )
+        findings = scan_content(content, "config.yaml")
+        pat_findings = [f for f in findings if f.detector_name == "github_fine_grained_pat"]
+        assert len(pat_findings) == 1
+        assert pat_findings[0].criticality == Criticality.CRITICAL
+        assert pat_findings[0].secret_type == SecretType.GITHUB_TOKEN
+
+    @pytest.mark.parametrize(
+        ("detector_name", "token"),
+        [
+            ("github_app_user_token", "ghu_" + ("u" * 36)),
+            ("github_app_installation_token", "ghs_" + ("s" * 36)),
+            ("github_app_refresh_token", "ghr_" + ("r" * 36)),
+        ],
+    )
+    def test_detects_github_app_tokens(self, detector_name: str, token: str):
+        """GitHub App token families should be detected as CRITICAL findings."""
+        findings = scan_content(f"TOKEN={token}", ".env")
+        token_findings = [f for f in findings if f.detector_name == detector_name]
+        assert len(token_findings) == 1
+        assert token_findings[0].criticality == Criticality.CRITICAL
+        assert token_findings[0].secret_type == SecretType.GITHUB_TOKEN
+
+    def test_does_not_flag_short_github_app_token(self):
+        """Short GitHub App tokens should not match the detector."""
+        findings = scan_content("TOKEN=ghs_shortexampletoken", ".env.example")
+        token_findings = [f for f in findings if f.detector_name == "github_app_installation_token"]
+        assert token_findings == []
+
     def test_does_not_flag_github_url_without_token(self):
         """A GitHub URL without a token should not be flagged."""
         content = "REPO_URL = https://github.com/myorg/myrepo"
         findings = scan_content(content, "config.py")
         gh_findings = [
             f for f in findings
-            if f.detector_name in ("github_personal_access_token", "github_oauth_token")
+            if f.detector_name.startswith("github_")
         ]
         assert gh_findings == []
 
