@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -84,3 +85,71 @@ def test_scan_file_patch_mode_preserves_target_file_path(tmp_path):
     assert result.exit_code == 1
     assert "src/settings.py" in result.output
     assert str(patch) not in result.output
+
+
+def test_scan_file_json_output_reports_clean_file(tmp_path):
+    target = tmp_path / "app.py"
+    target.write_text("print('hello')\n", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["scan-file", "--json-output", str(target)])
+
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["scan_mode"] == "file"
+    assert payload["scan_target"] == str(target)
+    assert payload["total_findings"] == 0
+    assert payload["findings"] == []
+    assert payload["summary"] == {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+    }
+
+
+def test_scan_file_json_output_reports_detected_secret(tmp_path):
+    target = tmp_path / "config.py"
+    target.write_text(f'AWS_ACCESS_KEY_ID = "{_FAKE_AWS}"\n', encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["scan-file", "--json-output", str(target)])
+
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert payload["scan_mode"] == "file"
+    assert payload["total_findings"] == 1
+    assert payload["findings"][0]["file_path"] == str(target)
+    assert payload["findings"][0]["severity"] == "critical"
+    assert payload["findings"][0]["detector_name"] == "aws_access_key_id"
+    assert "Fail condition met" not in result.output
+
+
+def test_scan_file_json_output_patch_mode_uses_patch_findings_file_path(tmp_path):
+    patch = tmp_path / "addition.diff"
+    patch.write_text(
+        "\n".join(
+            [
+                "diff --git a/src/settings.py b/src/settings.py",
+                "index 1111111..2222222 100644",
+                "--- a/src/settings.py",
+                "+++ b/src/settings.py",
+                "@@ -0,0 +1 @@",
+                f'+AWS_ACCESS_KEY_ID = "{_FAKE_AWS}"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["scan-file", "--patch-mode", "--json-output", str(patch)])
+
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert payload["scan_mode"] == "patch"
+    assert payload["scan_target"] == str(patch)
+    assert payload["findings"][0]["file_path"] == "src/settings.py"
