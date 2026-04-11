@@ -149,6 +149,12 @@ def scan_directory(
                 files_skipped += 1
                 continue
 
+            # Refuse symlinked files so scans cannot follow links outside the root.
+            if file_path.is_symlink():
+                logger.debug("Symlinked file skipped", path=str(file_path))
+                files_skipped += 1
+                continue
+
             # Skip suppressed files
             rel_str = str(file_path.relative_to(root_path))
             if rel_str in suppressed_files:

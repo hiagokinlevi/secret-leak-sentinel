@@ -109,6 +109,20 @@ class TestScanDirectory:
         png_findings = [f for f in regex_findings if "image.png" in f.file_path]
         assert png_findings == []
 
+    def test_skips_symlinked_files_that_point_outside_root(self, tmp_path):
+        """Symlinked files should be skipped instead of scanning outside the root."""
+        outside_dir = tmp_path.parent / "outside-fixtures"
+        outside_dir.mkdir()
+        outside_file = outside_dir / "outside.py"
+        outside_file.write_text('token = "AKIAIOSFODNN7EXAMPLE"\n', encoding="utf-8")
+
+        symlink_path = tmp_path / "linked.py"
+        symlink_path.symlink_to(outside_file)
+
+        regex_findings, entropy_findings = scan_directory(str(tmp_path), entropy_enabled=True)
+        assert regex_findings == []
+        assert entropy_findings == []
+
     def test_returns_entropy_findings_when_enabled(self, tmp_path):
         """When entropy is enabled, high-entropy strings should be detected."""
         config_file = tmp_path / "config.yaml"
