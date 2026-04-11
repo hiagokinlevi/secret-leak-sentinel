@@ -40,6 +40,8 @@ CI pipeline  -->  scan-path / scan-staged / scan-file --patch-mode  -->  [pipeli
 Post-incident  -->  scan-git-history  -->  [find and remediate historical leaks]
 ```
 
+For GitHub-native automation, the repository now ships a composite action in `action.yml`. The action installs `secret-leak-sentinel`, validates the requested subcommand and root CLI inputs without shell interpolation, runs inside the workflow workspace, and publishes any generated Markdown, CSV, or HTML report paths as outputs for upload or notification steps.
+
 ## Next steps
 
 - [Detection methodology](detection-methodology.md) — how detectors work and are tuned

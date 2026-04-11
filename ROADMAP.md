@@ -45,7 +45,7 @@ Planned development direction for `secret-leak-sentinel`.
 
 - [ ] VS Code extension (calls CLI and surfaces findings inline)
 - [x] Pre-push hook in addition to pre-commit
-- [ ] GitHub Actions marketplace action
+- [x] GitHub Actions marketplace action
 
 ---
 

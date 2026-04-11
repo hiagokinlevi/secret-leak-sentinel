@@ -22,6 +22,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **Git integration** — scan staged files, working tree, or full commit history with commit-level attribution and blob deduplication
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
 - **Pre-push hook** — scans outgoing commit patches so `--no-verify` commits still get a last defensive check
+- **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
 - **Criticality classification** — multi-signal classifier assigns final severity and confidence scores
 - **Rich terminal output** — colour-coded findings table via the `rich` library
 - **Markdown reports** — structured output for code review, compliance, and tracking
@@ -153,9 +154,38 @@ suppressions:
 
 ```yaml
 # .github/workflows/secret-scan.yml
-- name: Secret scan
-  run: secret-leak-sentinel scan-path . --fail-on high
+name: secret-scan
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan repository for leaked secrets
+        id: secret_scan
+        uses: hiagokinlevi/secret-leak-sentinel@main
+        with:
+          command: scan-path
+          args: .
+          fail-on: high
+          output-dir: ./scan-results
+
+      - name: Upload Markdown report
+        if: ${{ steps.secret_scan.outputs.report-markdown != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-scan-report
+          path: ${{ steps.secret_scan.outputs.report-markdown }}
 ```
+
+The repository now includes a composite GitHub Action in [`action.yml`](action.yml). It installs `secret-leak-sentinel`, validates the requested subcommand and root CLI options without invoking a shell, runs inside the workflow workspace, and publishes the newest Markdown, CSV, and HTML report paths as step outputs for downstream upload or notification steps.
 
 ## Cloud credential notes
 
