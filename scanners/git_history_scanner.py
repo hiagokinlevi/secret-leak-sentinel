@@ -201,9 +201,12 @@ class _Rule:
     pattern:     re.Pattern
 
 
+_AWS_ACCESS_KEY_PREFIX_PATTERN = r"(?:AKIA|ASIA)"
+
+
 _RULES: List[_Rule] = [
     _Rule("AWS_ACCESS_KEY", "AWS access key ID",
-          re.compile(r"AKIA[0-9A-Z]{16}", re.ASCII)),
+          re.compile(_AWS_ACCESS_KEY_PREFIX_PATTERN + r"[0-9A-Z]{16}", re.ASCII)),
     _Rule("AWS_SECRET_KEY", "AWS secret access key candidate",
           re.compile(r"(?:aws_secret|secret_key)\s*[=:]\s*['\"]?([A-Za-z0-9/+=]{40})", re.IGNORECASE)),
     _Rule("GITHUB_TOKEN", "GitHub personal/app token",

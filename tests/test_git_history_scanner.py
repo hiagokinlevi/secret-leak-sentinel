@@ -184,6 +184,11 @@ class TestAWSAccessKey:
         r = _scanner().scan_snapshots([snap])
         assert "AWS_ACCESS_KEY" in _rule_ids(r)
 
+    def test_detects_temporary_aws_access_key(self):
+        snap = _commit(diffs=[_diff(content="key = '" + ("AS" + "IAIOSFODNN7EXAMPLE1234") + "'")])
+        r = _scanner().scan_snapshots([snap])
+        assert "AWS_ACCESS_KEY" in _rule_ids(r)
+
     def test_not_fired_for_short_string(self):
         snap = _commit(diffs=[_diff(content="key = 'AKIA'")])
         r = _scanner().scan_snapshots([snap])

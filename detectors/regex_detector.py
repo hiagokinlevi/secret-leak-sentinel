@@ -52,12 +52,17 @@ class DetectorPattern:
     description: str
 
 
+# AWS temporary STS access keys use the ASIA prefix. Treat them like
+# long-lived AKIA access keys so one detector covers both credential forms.
+_AWS_ACCESS_KEY_PREFIX_PATTERN = r"(?:AKIA|ASIA)"
+
+
 # Curated detector patterns.
 # Ordered from most specific (and thus most reliable) to most generic.
 DETECTOR_PATTERNS: list[DetectorPattern] = [
     DetectorPattern(
         name="aws_access_key_id",
-        pattern=r"AKIA[0-9A-Z]{16}",
+        pattern=_AWS_ACCESS_KEY_PREFIX_PATTERN + r"[0-9A-Z]{16}",
         secret_type=SecretType.AWS_ACCESS_KEY,
         criticality=Criticality.CRITICAL,
         description="AWS Access Key ID — if exposed, could grant access to AWS resources",

@@ -29,6 +29,15 @@ class TestAWSAccessKeyDetection:
         assert aws_findings[0].criticality == Criticality.CRITICAL
         assert aws_findings[0].secret_type == SecretType.AWS_ACCESS_KEY
 
+    def test_detects_synthetic_aws_sts_access_key(self):
+        """A temporary STS AWS access key ID should produce the same CRITICAL finding."""
+        content = 'AWS_ACCESS_KEY_ID = "' + ("AS" + "IAIOSFODNN7EXAMPLE") + '"'
+        findings = scan_content(content, "config.py")
+        aws_findings = [f for f in findings if f.detector_name == "aws_access_key_id"]
+        assert len(aws_findings) == 1
+        assert aws_findings[0].criticality == Criticality.CRITICAL
+        assert aws_findings[0].secret_type == SecretType.AWS_ACCESS_KEY
+
     def test_aws_key_finding_has_masked_excerpt(self):
         """The finding excerpt must be masked and not contain the full key."""
         content = 'key = "AKIAIOSFODNN7EXAMPLE"'
@@ -48,6 +57,13 @@ class TestAWSAccessKeyDetection:
     def test_does_not_flag_short_akia_string(self):
         """AKIA followed by fewer than 16 alphanumeric characters should not match."""
         content = "AKIASHORT = value"  # Only 5 characters after AKIA
+        findings = scan_content(content, "config.py")
+        aws_findings = [f for f in findings if f.detector_name == "aws_access_key_id"]
+        assert aws_findings == []
+
+    def test_does_not_flag_short_asia_string(self):
+        """ASIA followed by fewer than 16 alphanumeric characters should not match."""
+        content = "ASIASHORT = value"
         findings = scan_content(content, "config.py")
         aws_findings = [f for f in findings if f.detector_name == "aws_access_key_id"]
         assert aws_findings == []
