@@ -43,7 +43,10 @@ coverage requires a signed URL shape with `sv` and `sig` parameters, and GCP
 service-account coverage keys off the `private_key_id` and
 `client_email ... iam.gserviceaccount.com` JSON fields. Private-key coverage
 also spans classic PEM headers, encrypted PKCS#8 blocks, SSH.com `SSH2`
-private-key blocks, and PuTTY `.ppk` headers.
+private-key blocks, and PuTTY `.ppk` headers. JWT coverage uses a two-step
+check: a narrow regex first finds JWT-shaped bearer tokens, then the detector
+base64url-decodes the header and only emits a finding when the header
+advertises `alg: none` or an HMAC signing mode (`HS256`, `HS384`, `HS512`).
 
 ## Entropy detection
 

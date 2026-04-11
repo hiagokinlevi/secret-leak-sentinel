@@ -12,6 +12,8 @@ Patterns cover common credential types:
 IMPORTANT: This detector produces candidates, not confirmed secrets.
 All findings require human review before remediation.
 """
+import base64
+import json
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -162,6 +164,17 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
         description="PuTTY PPK private key header",
     ),
     DetectorPattern(
+        name="jwt_weak_or_unsigned",
+        pattern=(
+            r"(?<![A-Za-z0-9_-])(?:Bearer\s+)?"
+            r"eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{0,}"
+            r"(?![A-Za-z0-9_-])"
+        ),
+        secret_type=SecretType.API_TOKEN,
+        criticality=Criticality.HIGH,
+        description="JWT bearer token using alg=none or HMAC signing",
+    ),
+    DetectorPattern(
         name="generic_api_key_assignment",
         pattern=r'(?i)(api[_-]?key|apikey|api[_-]?secret)\s*[=:]\s*["\']?[A-Za-z0-9+/]{20,}["\']?',
         secret_type=SecretType.API_TOKEN,
@@ -228,6 +241,44 @@ class Finding:
     suppression_reason: Optional[str] = None
 
 
+def _decode_base64url_json(value: str) -> Optional[dict]:
+    """Decode a base64url-encoded JSON object, returning None on invalid input."""
+    try:
+        padding = "=" * (-len(value) % 4)
+        decoded = base64.urlsafe_b64decode(value + padding)
+        data = json.loads(decoded.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+    return data if isinstance(data, dict) else None
+
+
+def _is_weak_or_unsigned_jwt(match_text: str) -> bool:
+    """Return True only for JWTs whose header advertises alg=none or HMAC signing."""
+    token = match_text.split()[-1]
+    parts = token.split(".")
+    if len(parts) != 3:
+        return False
+
+    header = _decode_base64url_json(parts[0])
+    if not header:
+        return False
+
+    algorithm = str(header.get("alg", "")).upper()
+    if algorithm == "NONE":
+        return True
+
+    return algorithm in {"HS256", "HS384", "HS512"}
+
+
+def _should_emit_finding(detector: DetectorPattern, match: re.Match) -> bool:
+    """Apply detector-specific validation beyond the base regex."""
+    if detector.name == "jwt_weak_or_unsigned":
+        return _is_weak_or_unsigned_jwt(match.group(0))
+
+    return True
+
+
 def _mask_value(line: str, match: re.Match) -> str:
     """
     Mask the matched secret value, keeping only a prefix for context.
@@ -256,7 +307,7 @@ def scan_content(content: str, file_path: str) -> list[Finding]:
     for line_no, line in enumerate(content.splitlines(), start=1):
         for detector in DETECTOR_PATTERNS:
             match = re.search(detector.pattern, line)
-            if match:
+            if match and _should_emit_finding(detector, match):
                 finding = Finding(
                     detector_name=detector.name,
                     secret_type=detector.secret_type,

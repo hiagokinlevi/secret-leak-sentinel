@@ -26,7 +26,7 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] SendGrid API keys
 - [x] Azure SAS tokens and connection strings
 - [x] GCP service account JSON key detection
-- [ ] JWT token detection (unsigned or weak-signature JWTs)
+- [x] JWT token detection (unsigned or weak-signature JWTs)
 - [x] SSH private key detection (PEM, PKCS#8, SSH2, and PuTTY formats)
 - [ ] HashiCorp Vault tokens
 

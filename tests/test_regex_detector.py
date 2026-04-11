@@ -253,6 +253,60 @@ class TestPEMPrivateKeyDetection:
         assert putty_findings == []
 
 
+class TestJWTDetection:
+    """Tests for the jwt_weak_or_unsigned detector pattern."""
+
+    def test_detects_unsigned_jwt(self):
+        content = (
+            "Authorization: Bearer "
+            "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0."
+            "eyJzdWIiOiJ1c2VyLTEyMyIsInNjb3BlIjoiYXBpIn0."
+        )
+        findings = scan_content(content, "headers.txt")
+        jwt_findings = [f for f in findings if f.detector_name == "jwt_weak_or_unsigned"]
+        assert len(jwt_findings) == 1
+        assert jwt_findings[0].criticality == Criticality.HIGH
+        assert jwt_findings[0].secret_type == SecretType.API_TOKEN
+
+    def test_detects_hmac_signed_jwt(self):
+        content = (
+            "jwt="
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+            "eyJpc3MiOiJzZWNyZXQtbGVhay1zZW50aW5lbCIsInJvbGUiOiJhZG1pbiJ9."
+            "c2lnbmF0dXJl"
+        )
+        findings = scan_content(content, ".env")
+        jwt_findings = [f for f in findings if f.detector_name == "jwt_weak_or_unsigned"]
+        assert len(jwt_findings) == 1
+
+    def test_does_not_flag_rs256_jwt(self):
+        content = (
+            "token="
+            "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
+            "eyJpc3MiOiJzZWNyZXQtbGVhay1zZW50aW5lbCIsInN1YiI6ImFwaSJ9."
+            "c2lnbmF0dXJl"
+        )
+        findings = scan_content(content, "config.py")
+        jwt_findings = [f for f in findings if f.detector_name == "jwt_weak_or_unsigned"]
+        assert jwt_findings == []
+
+    def test_does_not_flag_invalid_jwt_header(self):
+        content = "token=eyJub3QtanNvbiI.eyJzdWIiOiJhcHAifQ.signature"
+        findings = scan_content(content, "config.py")
+        jwt_findings = [f for f in findings if f.detector_name == "jwt_weak_or_unsigned"]
+        assert jwt_findings == []
+
+    def test_masks_jwt_value(self):
+        token = (
+            "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9."
+            "eyJyb2xlIjoic2VjdXJpdHktb3BzIiwiaWF0IjoxNzEwMDAwMDAwfQ."
+            "c2lnbmVk"
+        )
+        findings = scan_content(f"AUTH_TOKEN={token}", ".env")
+        jwt_finding = next(f for f in findings if f.detector_name == "jwt_weak_or_unsigned")
+        assert token not in jwt_finding.masked_excerpt
+
+
 class TestPasswordAssignmentDetection:
     """Tests for the password_assignment detector pattern."""
 
