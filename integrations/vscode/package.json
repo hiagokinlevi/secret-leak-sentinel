@@ -1,0 +1,65 @@
+{
+  "name": "secret-leak-sentinel-vscode",
+  "displayName": "Secret Leak Sentinel",
+  "description": "Run secret-leak-sentinel against the active file and surface findings as VS Code diagnostics.",
+  "version": "0.1.0",
+  "publisher": "hiagokinlevi",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:secretLeakSentinel.scanCurrentFile",
+    "onCommand:secretLeakSentinel.clearFindings"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "secretLeakSentinel.scanCurrentFile",
+        "title": "Secret Leak Sentinel: Scan Current File"
+      },
+      {
+        "command": "secretLeakSentinel.clearFindings",
+        "title": "Secret Leak Sentinel: Clear Findings"
+      }
+    ],
+    "configuration": {
+      "title": "Secret Leak Sentinel",
+      "properties": {
+        "secretLeakSentinel.binaryPath": {
+          "type": "string",
+          "default": "secret-leak-sentinel",
+          "description": "Path to the secret-leak-sentinel CLI binary."
+        },
+        "secretLeakSentinel.extraArgs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional CLI arguments appended before the file path."
+        },
+        "secretLeakSentinel.runOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run secret-leak-sentinel automatically whenever a file is saved."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "check": "node --check src/extension.js && node --check src/scanPayload.js",
+    "test": "node --test ./test/*.test.js"
+  },
+  "keywords": [
+    "security",
+    "secrets",
+    "credentials",
+    "devsecops"
+  ]
+}
