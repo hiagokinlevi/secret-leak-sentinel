@@ -72,6 +72,60 @@ def test_resolve_paths_use_workspace_and_workdir(
     assert output_dir == (workspace / "repo" / "artifacts").resolve()
 
 
+def test_resolve_working_directory_rejects_parent_traversal(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
+
+    with pytest.raises(ValueError, match="working-directory must stay within GITHUB_WORKSPACE"):
+        resolve_working_directory("../outside")
+
+
+def test_resolve_working_directory_rejects_absolute_path_outside_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
+
+    with pytest.raises(ValueError, match="working-directory must stay within GITHUB_WORKSPACE"):
+        resolve_working_directory(str(outside))
+
+
+def test_resolve_output_directory_rejects_parent_traversal(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    repo = workspace / "repo"
+    repo.mkdir(parents=True)
+    monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
+
+    with pytest.raises(ValueError, match="output-dir must stay within GITHUB_WORKSPACE"):
+        resolve_output_directory("../../outside", repo)
+
+
+def test_resolve_output_directory_rejects_absolute_path_outside_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace"
+    repo = workspace / "repo"
+    repo.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
+
+    with pytest.raises(ValueError, match="output-dir must stay within GITHUB_WORKSPACE"):
+        resolve_output_directory(str(outside), repo)
+
+
 def test_discover_report_outputs_returns_newest_report_per_extension(tmp_path: Path) -> None:
     markdown_old = tmp_path / "secret_scan_20260411_010101.md"
     markdown_new = tmp_path / "secret_scan_20260411_020202.md"

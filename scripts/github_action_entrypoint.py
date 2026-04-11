@@ -67,15 +67,30 @@ def resolve_working_directory(raw_workdir: str) -> Path:
     path = Path(raw_workdir)
     if not path.is_absolute():
         path = workspace / path
-    return path.resolve()
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(workspace.resolve())
+    except ValueError as exc:
+        raise ValueError(
+            "working-directory must stay within GITHUB_WORKSPACE."
+        ) from exc
+    return resolved
 
 
 def resolve_output_directory(raw_output_dir: str, workdir: Path) -> Path:
     """Resolve the report output directory relative to the working directory."""
+    workspace = Path(os.environ.get("GITHUB_WORKSPACE", os.getcwd())).resolve()
     path = Path(raw_output_dir)
     if not path.is_absolute():
         path = workdir / path
-    return path.resolve()
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(workspace)
+    except ValueError as exc:
+        raise ValueError(
+            "output-dir must stay within GITHUB_WORKSPACE."
+        ) from exc
+    return resolved
 
 
 def build_command(
