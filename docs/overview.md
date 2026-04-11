@@ -31,7 +31,10 @@ Shannon entropy measures the randomness of a string. High-entropy strings in ass
 Developer workstation  -->  Pre-commit hook  -->  [commit blocked if secrets found]
                                  |
                                  v
-CI pipeline  -->  scan-path / scan-staged  -->  [pipeline fails if secrets found]
+Developer workstation  -->  Pre-push hook  -->  [push blocked if new patch lines contain secrets]
+                                 |
+                                 v
+CI pipeline  -->  scan-path / scan-staged / scan-file --patch-mode  -->  [pipeline fails if secrets found]
                                  |
                                  v
 Post-incident  -->  scan-git-history  -->  [find and remediate historical leaks]
