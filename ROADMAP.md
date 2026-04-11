@@ -54,7 +54,7 @@ Planned development direction for `secret-leak-sentinel`.
 - [ ] ML-based classifier to reduce false positive rate on entropy findings
 - [ ] Context-aware analysis (is the file a test fixture? a documentation example?)
 - [ ] Cross-file correlation (e.g., same high-entropy string appears in multiple files)
-- [ ] Severity escalation when a pattern is found inside a `.env` file specifically
+- [x] Severity escalation when a pattern is found inside a `.env` file specifically
 
 ---
 

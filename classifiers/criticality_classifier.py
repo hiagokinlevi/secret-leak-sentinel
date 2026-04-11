@@ -49,6 +49,8 @@ _SAMPLE_CONTEXT_PATTERNS = {
 # File extensions where a real secret is particularly likely (escalate confidence)
 _HIGH_RISK_EXTENSIONS = {".env", ".pem", ".key", ".p12", ".pfx", ".secret"}
 
+_DOTENV_EXAMPLE_MARKERS = {"example", "examples", "sample", "samples", "template", "templates"}
+
 # File extensions where a real secret is unlikely (de-escalate confidence)
 _LOW_RISK_EXTENSIONS = {".md", ".rst", ".txt", ".html", ".svg"}
 
@@ -74,6 +76,31 @@ def _is_sample_context(file_path: str) -> bool:
 def _file_extension(file_path: str) -> str:
     """Return the lowercase file extension."""
     return Path(file_path).suffix.lower()
+
+
+def _is_dotenv_family_file(file_path: str) -> bool:
+    """Return True for live dotenv-style files but not placeholder examples."""
+    name = Path(file_path).name.lower()
+    if not name:
+        return False
+
+    is_dotenv_name = (
+        name == ".env"
+        or name.startswith(".env.")
+        or name.endswith(".env")
+    )
+    if not is_dotenv_name:
+        return False
+
+    parts = [part for part in name.split(".") if part]
+    if any(part in _DOTENV_EXAMPLE_MARKERS for part in parts):
+        return False
+    return True
+
+
+def _is_high_risk_file(file_path: str) -> bool:
+    """Return True when the file path strongly suggests live secret material."""
+    return _file_extension(file_path) in _HIGH_RISK_EXTENSIONS or _is_dotenv_family_file(file_path)
 
 
 def classify_finding(
@@ -114,16 +141,16 @@ def classify_finding(
 
     # --- Context escalation: .env and key files ---
     ext = _file_extension(finding.file_path)
-    if ext in _HIGH_RISK_EXTENSIONS:
+    if _is_high_risk_file(finding.file_path):
         # Secrets in .env, .pem, .key files are almost certainly real
         confidence = min(confidence + 0.10, 0.98)
         context_escalation = True
-        rationale_parts.append(f"High-risk file type ({ext}) escalates confidence.")
+        rationale_parts.append(f"High-risk file context ({Path(finding.file_path).name}) escalates confidence.")
 
         # Escalate criticality from HIGH to CRITICAL if in a key/env file
         if criticality == Criticality.HIGH:
             criticality = Criticality.CRITICAL
-            rationale_parts.append("Criticality escalated from HIGH to CRITICAL due to file type.")
+            rationale_parts.append("Criticality escalated from HIGH to CRITICAL due to file context.")
 
     # --- Context penalty: low-risk extensions ---
     elif ext in _LOW_RISK_EXTENSIONS:

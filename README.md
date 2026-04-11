@@ -208,6 +208,12 @@ when a JWT-shaped bearer token decodes to `alg: none` or an HMAC signing mode
 similar JWTs out of the high-signal secret list while still catching portable
 tokens that are unsigned or commonly backed by shared secrets.
 
+The classifier also treats live dotenv-style files such as `.env`,
+`.env.local`, `.env.production`, and `config.env` as high-risk storage
+locations, which escalates confirmed `HIGH` findings to `CRITICAL`. Placeholder
+dotenv examples such as `.env.example` and `.env.sample` stay out of that
+automatic escalation path so public templates and docs do not get overstated.
+
 SSH private-key coverage spans traditional PEM headers, encrypted PKCS#8
 blocks, SSH.com `SSH2` private-key blocks, and PuTTY `.ppk` headers so
 private-key material is still flagged when teams store it outside the

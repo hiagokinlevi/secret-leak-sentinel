@@ -72,8 +72,14 @@ The classifier (`classifiers/criticality_classifier.py`) combines signals from b
 | Regex pattern matches with high specificity | High base confidence |
 | Entropy detector corroborates the same line | Confidence boost |
 | File is in a `tests/` or `samples/` directory | Confidence penalty; de-escalate criticality |
-| File extension is `.env`, `.pem`, `.key` | Confidence boost; escalate to CRITICAL |
+| File is a live dotenv-style secret store (`.env`, `.env.local`, `config.env`) or a key container (`.pem`, `.key`) | Confidence boost; escalate to CRITICAL |
 | File extension is `.md`, `.txt` | Confidence penalty |
+
+Dotenv escalation intentionally excludes placeholder filenames such as
+`.env.example`, `.env.sample`, and `.env.template`. Those files often exist to
+document configuration rather than store live credentials, so they remain
+subject to the normal documentation and sample-context penalties instead of an
+automatic severity jump.
 
 ## Policy application
 
