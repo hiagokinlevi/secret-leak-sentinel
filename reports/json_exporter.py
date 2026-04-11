@@ -38,6 +38,7 @@ def classified_finding_to_dict(classified_finding: ClassifiedFinding) -> dict[st
         "entropy_corroboration": classified_finding.entropy_corroboration,
         "context_penalty": classified_finding.context_penalty,
         "context_escalation": classified_finding.context_escalation,
+        "context_labels": list(classified_finding.context_labels),
     }
 
 

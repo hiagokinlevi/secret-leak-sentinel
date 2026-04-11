@@ -124,7 +124,22 @@ def test_scan_file_json_output_reports_detected_secret(tmp_path):
     assert payload["findings"][0]["file_path"] == str(target)
     assert payload["findings"][0]["severity"] == "critical"
     assert payload["findings"][0]["detector_name"] == "aws_access_key_id"
+    assert payload["findings"][0]["context_labels"] == []
     assert "Fail condition met" not in result.output
+
+
+def test_scan_file_json_output_includes_context_labels(tmp_path):
+    target = tmp_path / ".github" / "workflows" / "release.yml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(f'AWS_ACCESS_KEY_ID = "{_FAKE_AWS}"\n', encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["scan-file", "--json-output", str(target)])
+
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert "ci_pipeline" in payload["findings"][0]["context_labels"]
 
 
 def test_scan_file_json_output_patch_mode_uses_patch_findings_file_path(tmp_path):
