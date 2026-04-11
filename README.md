@@ -104,8 +104,7 @@ chmod +x .git/hooks/pre-push
 | Type                        | Example match                          | Criticality |
 |-----------------------------|----------------------------------------|-------------|
 | AWS Access Key ID           | `AKIA[0-9A-Z]{16}`                     | CRITICAL    |
-| GitHub Personal Access Token | `ghp_[A-Za-z0-9]{36}`                | CRITICAL    |
-| GitHub OAuth Token          | `gho_[A-Za-z0-9]{36}`                 | CRITICAL    |
+| GitHub tokens               | `ghp_...`, `gho_...`, `github_pat_...`, `ghs_...` | CRITICAL |
 | Stripe live key             | `sk_live_...`, `rk_live_...`          | CRITICAL    |
 | Twilio auth token           | `TWILIO_AUTH_TOKEN=...`               | CRITICAL    |
 | SendGrid API key            | `SG.<id>.<secret>`                    | CRITICAL    |

@@ -51,6 +51,11 @@ aws cloudtrail lookup-events \
 
 ## GitHub Personal Access Token
 
+This guidance applies to classic `ghp_...` tokens, fine-grained
+`github_pat_...` tokens, and GitHub App token families such as `ghs_...`,
+`ghu_...`, and `ghr_...`. Rotate or revoke them immediately if they were
+committed to source control or exposed in CI logs.
+
 ### Rotate
 
 1. Go to **GitHub Settings > Developer settings > Personal access tokens**.

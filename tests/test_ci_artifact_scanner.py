@@ -44,6 +44,14 @@ def test_github_pat_in_log(tmp_path):
     assert gh
 
 
+def test_fine_grained_github_pat_in_log(tmp_path):
+    token = "github_pat_" + "A" * 22 + "_" + "B" * 59
+    p = _write_log(tmp_path, f"Using token: {token}\n")
+    findings = scan_log_file(p)
+    gh = [f for f in findings if f.secret_type == SecretType.GITHUB_TOKEN]
+    assert gh
+
+
 def test_private_key_in_log(tmp_path):
     p = _write_log(tmp_path, "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA...\n")
     findings = scan_log_file(p)

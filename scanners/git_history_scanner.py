@@ -210,7 +210,7 @@ _RULES: List[_Rule] = [
     _Rule("AWS_SECRET_KEY", "AWS secret access key candidate",
           re.compile(r"(?:aws_secret|secret_key)\s*[=:]\s*['\"]?([A-Za-z0-9/+=]{40})", re.IGNORECASE)),
     _Rule("GITHUB_TOKEN", "GitHub personal/app token",
-          re.compile(r"gh[pousr]_[A-Za-z0-9]{36,255}")),
+          re.compile(r"(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{20,255})")),
     _Rule("GENERIC_API_KEY", "Generic API key assignment",
           re.compile(r"(?:api_key|apikey|api_token)\s*[=:]\s*['\"]?([A-Za-z0-9\-_]{20,})", re.IGNORECASE)),
     _Rule("PRIVATE_KEY_HEADER", "PEM private key header",

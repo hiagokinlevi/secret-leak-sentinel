@@ -225,6 +225,12 @@ class TestGitHubToken:
         r = _scanner().scan_snapshots([snap])
         assert "GITHUB_TOKEN" in _rule_ids(r)
 
+    def test_detects_fine_grained_pat(self):
+        content = "token = 'github_pat_" + ("A" * 22) + "_" + ("B" * 59) + "'"
+        snap = _commit(diffs=[_diff(content=content)])
+        r = _scanner().scan_snapshots([snap])
+        assert "GITHUB_TOKEN" in _rule_ids(r)
+
     def test_not_fired_for_random_string(self):
         snap = _commit(diffs=[_diff(content="no token here at all")])
         r = _scanner().scan_snapshots([snap])

@@ -41,6 +41,7 @@ _FAKE_AWS3 = "AKIA" + "XYZ1234567890ABC"
 _FAKE_GHP = "ghp_" + "x" * 40
 _FAKE_GHO = "gho_" + "x" * 40
 _FAKE_GHS = "ghs_" + "x" * 40
+_FAKE_GITHUB_PAT = "github_pat_" + "A" * 22 + "_" + "B" * 59
 _FAKE_STRIPE = "sk_live_" + "aBcDeFgHiJkLmNoPqRsTuVwX"
 
 
@@ -236,6 +237,13 @@ class TestGitHubTokenDetection:
         result = hook.scan_files({"deploy.sh": content})
         assert result.is_blocked is True
 
+    def test_fine_grained_github_pat_detected(self):
+        """A synthetic fine-grained GitHub PAT must be detected."""
+        hook = PreCommitHook()
+        content = f'GITHUB_TOKEN = "{_FAKE_GITHUB_PAT}"'
+        result = hook.scan_files({"ci.yml": content})
+        assert result.total_findings >= 1
+
     def test_github_oauth_token_detected(self):
         """A synthetic GitHub OAuth token (gho_) must be detected."""
         hook = PreCommitHook()
@@ -244,7 +252,7 @@ class TestGitHubTokenDetection:
         assert result.total_findings >= 1
 
     def test_github_server_to_server_detected(self):
-        """ghs_ prefix (server-to-server) must be detected by the gh[pousr]_ pattern."""
+        """ghs_ prefix (server-to-server) must be detected by the GitHub token rule."""
         hook = PreCommitHook()
         content = _FAKE_GHS
         result = hook.scan_files({"config.env": content})

@@ -210,9 +210,14 @@ _BUILTIN_PATTERNS: List[Tuple[str, str, re.Pattern]] = [
     # alphanumeric characters.  These have a very low false-positive rate.
     ("SC-001", "CRITICAL", re.compile(r"AKIA[0-9A-Z]{16}")),
 
-    # GitHub tokens — classic PAT (ghp_), OAuth (gho_), server-to-server (ghs_),
-    # user-to-server (ghu_), and refresh (ghr_) variants.
-    ("SC-002", "HIGH", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}")),
+    # GitHub tokens — classic PAT (ghp_), fine-grained PAT (github_pat_),
+    # OAuth (gho_), server-to-server (ghs_), user-to-server (ghu_), and
+    # refresh (ghr_) variants.
+    (
+        "SC-002",
+        "HIGH",
+        re.compile(r"(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{20,})"),
+    ),
 
     # PEM-encoded RSA or EC private key block header.  Presence of the header
     # in a committed file is almost always a critical exposure.
