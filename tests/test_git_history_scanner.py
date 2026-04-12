@@ -256,6 +256,30 @@ class TestNpmToken:
 
 
 # ===========================================================================
+# VAULT_TOKEN detection
+# ===========================================================================
+
+class TestVaultToken:
+    def test_detects_modern_vault_token(self):
+        content = "token = '" + ("hvs." + ("a" * 32)) + "'"
+        snap = _commit(diffs=[_diff(content=content)])
+        r = _scanner().scan_snapshots([snap])
+        assert "VAULT_TOKEN" in _rule_ids(r)
+
+    def test_detects_legacy_vault_token_assignment(self):
+        content = 'X-Vault-Token: "' + ("s." + ("b" * 32)) + '"'
+        snap = _commit(diffs=[_diff(content=content)])
+        r = _scanner().scan_snapshots([snap])
+        assert "VAULT_TOKEN" in _rule_ids(r)
+
+    def test_not_fired_for_short_vault_token(self):
+        content = "vault_token = 's.short-example'"
+        snap = _commit(diffs=[_diff(content=content)])
+        r = _scanner().scan_snapshots([snap])
+        assert "VAULT_TOKEN" not in _rule_ids(r)
+
+
+# ===========================================================================
 # PRIVATE_KEY_HEADER detection
 # ===========================================================================
 

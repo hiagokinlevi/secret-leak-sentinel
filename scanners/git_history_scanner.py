@@ -221,6 +221,13 @@ _RULES: List[_Rule] = [
           re.compile(r"xox[boas]-[0-9A-Za-z\-]+")),
     _Rule("NPM_TOKEN", "npm access token",
           re.compile(r"npm_[A-Za-z0-9]{36}")),
+    _Rule("VAULT_TOKEN", "HashiCorp Vault token",
+          re.compile(
+              r"(?:\b(?:hvs|hvb|hvr)\.[A-Za-z0-9_-]{24,}\b|"
+              r"(?:x-vault-token|vault[_-]?token)\s*[:=]\s*['\"]?"
+              r"(?:s|b|r)\.[A-Za-z0-9_-]{24,}['\"]?)",
+              re.IGNORECASE,
+          )),
     _Rule("STRIPE_KEY", "Stripe secret key",
           re.compile(r"sk_(?:live|test)_[A-Za-z0-9]{24,}")),
 ]
