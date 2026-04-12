@@ -43,9 +43,10 @@ scans, and commit-blocking hook rules. Stripe detection only flags live
 `sk_live_` and `rk_live_` keys, Twilio requires an auth-token or API-secret
 assignment context around a 32-character hex token, SendGrid requires the
 structured `SG.<id>.<secret>` key format, Slack coverage looks for `xox...`
-bearer tokens and `xapp-...` app-level tokens, Azure SAS coverage requires a
-signed URL shape with `sv` and `sig` parameters, and GCP service-account
-coverage keys off the `private_key_id` and
+bearer tokens and `xapp-...` app-level tokens, npm coverage only flags
+structured `npm_...` access tokens, Azure SAS coverage requires a signed URL
+shape with `sv` and `sig` parameters, and GCP service-account coverage keys off
+the `private_key_id` and
 `client_email ... iam.gserviceaccount.com` JSON fields. Vault coverage flags
 modern `hvs.`, `hvb.`, and `hvr.` tokens directly while only treating legacy
 single-letter prefixes such as `s.` as findings when they appear in explicit

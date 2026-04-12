@@ -70,6 +70,22 @@ committed to source control or exposed in CI logs.
 
 ---
 
+## npm Access Token
+
+### Rotate
+
+1. Go to **npm > Access Tokens** for the affected account or organization.
+2. Revoke the exposed token immediately.
+3. Create a replacement token with the minimum automation scope required.
+4. Update CI secrets, developer shell profiles, and any `.npmrc` references.
+
+### Audit
+
+1. Review recent package publish, dist-tag, and access-token events in npm account or org audit logs.
+2. Check CI logs for unauthorized publishes or registry access during the exposure window.
+
+---
+
 ## Database Connection String (PostgreSQL, MySQL, etc.)
 
 ### Rotate

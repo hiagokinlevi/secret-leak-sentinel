@@ -17,7 +17,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 ## Features
 
 - **Regex detection** — curated patterns for AWS keys, GitHub tokens, PEM, SSH2, and PuTTY private-key headers, connection strings, password assignments, and more
-- **Cloud and SaaS credential coverage** — detects Azure SAS URLs, Azure storage connection strings, GCP service account JSON key indicators, live Stripe secret/restricted keys, Twilio auth tokens, SendGrid API keys, Slack bearer/app tokens, HashiCorp Vault tokens, and weak or unsigned JWT bearer tokens
+- **Cloud and SaaS credential coverage** — detects Azure SAS URLs, Azure storage connection strings, GCP service account JSON key indicators, live Stripe secret/restricted keys, Twilio auth tokens, SendGrid API keys, Slack bearer/app tokens, npm access tokens, HashiCorp Vault tokens, and weak or unsigned JWT bearer tokens
 - **Entropy detection** — flags high-entropy strings that pattern matching alone might miss
 - **Git integration** — scan staged files, working tree, or full commit history with commit-level attribution and blob deduplication
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
@@ -109,6 +109,7 @@ chmod +x .git/hooks/pre-push
 | Twilio auth token           | `TWILIO_AUTH_TOKEN=...`               | CRITICAL    |
 | SendGrid API key            | `SG.<id>.<secret>`                    | CRITICAL    |
 | Slack bearer or app token   | `xoxb-...`, `xoxa-...`, or `xapp-1-...` | CRITICAL |
+| npm access token            | `npm_[A-Za-z0-9]{36}`                 | CRITICAL    |
 | Azure SAS URL               | `https://...blob.core.windows.net/...?...&sig=...` | CRITICAL |
 | Azure storage connection string | `DefaultEndpointsProtocol=...;AccountKey=...` | CRITICAL |
 | GCP service account key JSON | `"private_key_id": "...", "client_email": "...gserviceaccount.com"` | CRITICAL / HIGH |

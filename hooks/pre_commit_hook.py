@@ -255,6 +255,10 @@ _BUILTIN_PATTERNS: List[Tuple[str, str, re.Pattern]] = [
         "HIGH",
         re.compile(r"\b(?:xox(?:a|b|p|r|s)-[A-Za-z0-9-]{24,}|xapp-\d-[A-Za-z0-9-]{24,})\b"),
     ),
+
+    # npm access tokens are high-signal bearer credentials that should never
+    # appear in tracked files or CI scripts.
+    ("SC-008", "HIGH", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
 ]
 
 

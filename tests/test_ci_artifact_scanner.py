@@ -54,14 +54,20 @@ def test_fine_grained_github_pat_in_log(tmp_path):
 
 def test_slack_token_in_log(tmp_path):
     token = "xoxb-" + "123456789012-" + "123456789012-" + "abcdefghijklmnopqrstuvwx"
-    p = _write_log(
-        tmp_path,
-        f"Using Slack token: {token}\n",
-    )
+    p = _write_log(tmp_path, f"Using Slack token: {token}\n")
     findings = scan_log_file(p)
     slack = [f for f in findings if f.detector_name == "slack_bearer_token"]
     assert slack
     assert slack[0].criticality == Criticality.CRITICAL
+
+
+def test_npm_token_in_log(tmp_path):
+    token = "npm_" + ("a" * 36)
+    p = _write_log(tmp_path, f"Using npm token: {token}\n")
+    findings = scan_log_file(p)
+    npm = [f for f in findings if f.detector_name == "npm_access_token"]
+    assert npm
+    assert npm[0].criticality == Criticality.CRITICAL
 
 
 def test_private_key_in_log(tmp_path):

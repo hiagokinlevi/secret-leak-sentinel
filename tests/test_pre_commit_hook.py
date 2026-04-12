@@ -5,7 +5,7 @@ Comprehensive test suite for the pre-commit secret scanning hook.
 
 Covers:
   - Clean files produce exit_code 0
-  - Detection of every built-in pattern (SC-001 through SC-007)
+  - Detection of every built-in pattern (SC-001 through SC-008)
   - Severity ordering and comparison via SeverityLevel
   - HookConfig.fail_level property including unknown/edge-case values
   - skip_paths and skip_extensions filtering
@@ -45,6 +45,7 @@ _FAKE_GITHUB_PAT = "github_pat_" + "A" * 22 + "_" + "B" * 59
 _FAKE_STRIPE = "sk_live_" + "aBcDeFgHiJkLmNoPqRsTuVwX"
 _FAKE_SLACK_BOT = "xoxb-" + "123456789012-" + "123456789012-" + "abcdefghijklmnopqrstuvwx"
 _FAKE_SLACK_APP = "xapp-1-" + "ABCD1234EFGH5678-" + "IJKL9012MNOP3456-" + "qrstuvwxyzabcdef"
+_FAKE_NPM = "npm_" + "n" * 36
 
 
 # =============================================================================
@@ -316,7 +317,7 @@ class TestPasswordPatternDetection:
         """MEDIUM finding must NOT block when fail_on_severity=HIGH."""
         cfg = HookConfig(fail_on_severity="HIGH")
         hook = PreCommitHook(cfg)
-        # SC-004 is MEDIUM; SC-001/002/003/006/007 are CRITICAL/HIGH — only use a
+        # SC-004 is MEDIUM; SC-001/002/003/006/007/008 are CRITICAL/HIGH — only use a
         # pattern that exclusively matches MEDIUM
         content = "api_key = 'shortshortshortshortkey1'"
         result = hook.scan_files({"config.ini": content})
@@ -392,6 +393,29 @@ class TestSlackTokenDetection:
         hook = PreCommitHook(HookConfig(fail_on_severity="HIGH"))
         result = hook.scan_files({"slack.env": _FAKE_SLACK_BOT})
         assert result.is_blocked is True
+
+
+# =============================================================================
+# SC-008 — npm access token (HIGH)
+# =============================================================================
+
+class TestNpmTokenDetection:
+    """Tests for SC-008: npm access tokens (HIGH)."""
+
+    def test_npm_token_detected(self):
+        hook = PreCommitHook()
+        result = hook.scan_files({"npmrc": f"//registry.npmjs.org/:_authToken={_FAKE_NPM}"})
+        assert result.total_findings >= 1
+
+    def test_npm_token_blocks_with_high_threshold(self):
+        hook = PreCommitHook(HookConfig(fail_on_severity="HIGH"))
+        result = hook.scan_files({"build.sh": _FAKE_NPM})
+        assert result.is_blocked is True
+
+    def test_short_npm_token_not_detected(self):
+        hook = PreCommitHook()
+        result = hook.scan_files({"example.env": "npm_short_example_token"})
+        assert result.total_findings == 0
 
 
 # =============================================================================
@@ -656,11 +680,12 @@ class TestMultiplePatternsInFile:
             _FAKE_AWS + "\n"      # CRITICAL (SC-001)
             + _FAKE_STRIPE + "\n" # HIGH (SC-006)
             + _FAKE_SLACK_BOT + "\n" # HIGH (SC-007)
+            + _FAKE_NPM + "\n" # HIGH (SC-008)
         )
         result = hook.scan_files({"mixed.py": content})
         file_res = result.file_results[0]
         assert file_res.severity_counts.get("CRITICAL", 0) >= 1
-        assert file_res.severity_counts.get("HIGH", 0) >= 2
+        assert file_res.severity_counts.get("HIGH", 0) >= 3
 
 
 # =============================================================================
@@ -705,9 +730,9 @@ class TestMultiFileScanning:
         cfg = HookConfig(fail_on_severity="CRITICAL")
         hook = PreCommitHook(cfg)
         files = {
-            # SC-006 and SC-007 are HIGH, not CRITICAL — should NOT block
+            # SC-006, SC-007, and SC-008 are HIGH, not CRITICAL — should NOT block
             # under a CRITICAL threshold.
-            "pay.py": _FAKE_STRIPE + "\n" + _FAKE_SLACK_BOT + "\n",
+            "pay.py": _FAKE_STRIPE + "\n" + _FAKE_SLACK_BOT + "\n" + _FAKE_NPM + "\n",
         }
         result = hook.scan_files(files)
         assert result.is_blocked is False

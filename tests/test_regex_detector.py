@@ -16,9 +16,9 @@ from detectors.regex_detector import (
     scan_content,
 )
 
-
 _FAKE_SLACK_BOT = "xoxb-" + "123456789012-" + "123456789012-" + "abcdefghijklmnopqrstuvwx"
 _FAKE_SLACK_APP = "xapp-1-" + "ABCD1234EFGH5678-" + "IJKL9012MNOP3456-" + "qrstuvwxyzabcdef"
+_FAKE_NPM = "npm_" + "n" * 36
 
 
 class TestAWSAccessKeyDetection:
@@ -192,10 +192,22 @@ class TestSaaSTokenDetection:
         assert slack_findings[0].criticality == Criticality.CRITICAL
         assert slack_findings[0].secret_type == SecretType.API_TOKEN
 
+    def test_detects_npm_access_token(self):
+        findings = scan_content(f"NPM_TOKEN={_FAKE_NPM}", ".npmrc")
+        npm_findings = [f for f in findings if f.detector_name == "npm_access_token"]
+        assert len(npm_findings) == 1
+        assert npm_findings[0].criticality == Criticality.CRITICAL
+        assert npm_findings[0].secret_type == SecretType.API_TOKEN
+
     def test_does_not_flag_short_slack_token(self):
         findings = scan_content("SLACK_TOKEN=xoxb-short-example", ".env.example")
         slack_findings = [f for f in findings if f.detector_name == "slack_bearer_token"]
         assert slack_findings == []
+
+    def test_does_not_flag_short_npm_token(self):
+        findings = scan_content("NPM_TOKEN=npm_short_example_token", ".env.example")
+        npm_findings = [f for f in findings if f.detector_name == "npm_access_token"]
+        assert npm_findings == []
 
     def test_saas_tokens_are_masked(self):
         content = "SENDGRID_API_KEY=SG." + "a" * 22 + "." + "b" * 43
@@ -204,10 +216,14 @@ class TestSaaSTokenDetection:
         assert "b" * 43 not in sendgrid.masked_excerpt
 
     def test_slack_token_is_masked(self):
-        token = _FAKE_SLACK_BOT
-        findings = scan_content(f"SLACK_BOT_TOKEN={token}", ".env")
+        findings = scan_content(f"SLACK_BOT_TOKEN={_FAKE_SLACK_BOT}", ".env")
         slack = next(f for f in findings if f.detector_name == "slack_bearer_token")
-        assert token not in slack.masked_excerpt
+        assert _FAKE_SLACK_BOT not in slack.masked_excerpt
+
+    def test_npm_token_is_masked(self):
+        findings = scan_content(f"NPM_TOKEN={_FAKE_NPM}", ".npmrc")
+        npm = next(f for f in findings if f.detector_name == "npm_access_token")
+        assert _FAKE_NPM not in npm.masked_excerpt
 
 
 class TestCloudCredentialDetection:

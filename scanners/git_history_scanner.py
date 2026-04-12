@@ -219,6 +219,8 @@ _RULES: List[_Rule] = [
           re.compile(r"(?:password|passwd|pwd)\s*[=:]\s*['\"]([^'\"]{8,})['\"]", re.IGNORECASE)),
     _Rule("SLACK_TOKEN", "Slack API token",
           re.compile(r"xox[boas]-[0-9A-Za-z\-]+")),
+    _Rule("NPM_TOKEN", "npm access token",
+          re.compile(r"npm_[A-Za-z0-9]{36}")),
     _Rule("STRIPE_KEY", "Stripe secret key",
           re.compile(r"sk_(?:live|test)_[A-Za-z0-9]{24,}")),
 ]

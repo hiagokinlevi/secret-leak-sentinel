@@ -238,6 +238,24 @@ class TestGitHubToken:
 
 
 # ===========================================================================
+# NPM_TOKEN detection
+# ===========================================================================
+
+class TestNpmToken:
+    def test_detects_npm_token(self):
+        content = "token = '" + ("npm_" + ("a" * 36)) + "'"
+        snap = _commit(diffs=[_diff(content=content)])
+        r = _scanner().scan_snapshots([snap])
+        assert "NPM_TOKEN" in _rule_ids(r)
+
+    def test_not_fired_for_short_npm_token(self):
+        content = "token = 'npm_short_example_token'"
+        snap = _commit(diffs=[_diff(content=content)])
+        r = _scanner().scan_snapshots([snap])
+        assert "NPM_TOKEN" not in _rule_ids(r)
+
+
+# ===========================================================================
 # PRIVATE_KEY_HEADER detection
 # ===========================================================================
 

@@ -148,6 +148,13 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
         description="Slack app-level token",
     ),
     DetectorPattern(
+        name="npm_access_token",
+        pattern=r"\bnpm_[A-Za-z0-9]{36}\b",
+        secret_type=SecretType.API_TOKEN,
+        criticality=Criticality.CRITICAL,
+        description="npm access token",
+    ),
+    DetectorPattern(
         name="azure_sas_url",
         pattern=(
             r"""(?ix)
