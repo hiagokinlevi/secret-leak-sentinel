@@ -357,16 +357,17 @@ def _should_emit_finding(detector: DetectorPattern, match: re.Match) -> bool:
     return True
 
 
-def _mask_value(line: str, match: re.Match) -> str:
+def _mask_value(match: re.Match) -> str:
     """
-    Mask the matched secret value, keeping only a prefix for context.
-    Never returns the full secret.
+    Mask the current regex match without including surrounding line context.
+    This prevents one finding excerpt from leaking a different secret that
+    happens to appear earlier or later on the same line.
     """
-    start, end = match.span()
-    secret_len = end - start
-    # Keep up to 4 characters of prefix for context; mask the rest
-    masked = line[:start] + line[start:start+4] + "****" + f"[{secret_len}chars]"
-    return masked[:120]  # Limit excerpt length to avoid leaking surrounding context
+    match_text = match.group(0)
+    if len(match_text) <= 4:
+        return "****"
+
+    return match_text[:4] + "****" + f"[{len(match_text)}chars]"
 
 
 def scan_content(content: str, file_path: str) -> list[Finding]:
@@ -380,19 +381,21 @@ def scan_content(content: str, file_path: str) -> list[Finding]:
     Returns:
         List of Finding objects. May be empty if no candidates found.
     """
-    findings = []
+    findings: list[Finding] = []
 
     for line_no, line in enumerate(content.splitlines(), start=1):
         for detector in DETECTOR_PATTERNS:
-            match = re.search(detector.pattern, line)
-            if match and _should_emit_finding(detector, match):
+            for match in re.finditer(detector.pattern, line):
+                if not _should_emit_finding(detector, match):
+                    continue
+
                 finding = Finding(
                     detector_name=detector.name,
                     secret_type=detector.secret_type,
                     criticality=detector.criticality,
                     file_path=file_path,
                     line_number=line_no,
-                    masked_excerpt=_mask_value(line, match),
+                    masked_excerpt=_mask_value(match),
                     # Critical patterns (AWS key, GitHub token, PEM key) have high confidence
                     # due to their specific format; generic patterns have lower confidence
                     confidence=0.85 if detector.criticality == Criticality.CRITICAL else 0.65,

@@ -552,13 +552,33 @@ class TestScanContent:
         assert aws_findings[0].line_number == 1
         assert gh_findings[0].line_number == 3
 
+    def test_multiple_findings_from_same_detector_on_one_line(self):
+        """Repeated secrets on one line should each emit a finding."""
+        token_a = "ghp_" + ("a" * 36)
+        token_b = "ghp_" + ("b" * 36)
+        content = (
+            'TOKENS = "'
+            + token_a
+            + " "
+            + token_b
+            + '"'
+        )
+        findings = scan_content(content, "tokens.env")
+        gh_findings = [f for f in findings if f.detector_name == "github_personal_access_token"]
+        assert len(gh_findings) == 2
+        assert all(f.line_number == 1 for f in gh_findings)
+        assert all(token_a not in f.masked_excerpt for f in gh_findings)
+        assert all(token_b not in f.masked_excerpt for f in gh_findings)
+
     def test_multiple_cloud_findings_on_one_line(self):
         """Specific cloud patterns should coexist without suppressing each other."""
+        private_key_id = "c" * 40
         content = (
-            '{"private_key_id": "' + ("c" * 40) + '", '
+            '{"private_key_id": "' + private_key_id + '", '
             '"client_email": "sentinel@demo-project.iam.gserviceaccount.com"}'
         )
         findings = scan_content(content, "service-account.json")
         detector_names = {f.detector_name for f in findings}
         assert "gcp_service_account_private_key_id" in detector_names
         assert "gcp_service_account_client_email" in detector_names
+        assert all(private_key_id not in f.masked_excerpt for f in findings)
