@@ -75,6 +75,16 @@ class TestScanContentForEntropy:
             # Masked token should end with [Nchars] indicator
             assert "****" in finding.token or finding.token.endswith("]")
 
+    def test_findings_include_secret_preserving_fingerprint(self):
+        """Entropy findings should expose a stable non-secret fingerprint for correlation."""
+        content = 'secret = "aB3xY7mK9pQrZ2wE5vN8sD1cF4uH6tL0jI2qW"'
+        findings = scan_content_for_entropy(content, "config.py", threshold=4.0)
+
+        assert len(findings) == 1
+        assert findings[0].token_fingerprint
+        assert findings[0].token_fingerprint != findings[0].token
+        assert len(findings[0].token_fingerprint) == 16
+
     def test_line_number_is_correct(self):
         """Entropy findings should have the correct line number."""
         content = "normal_line = 'hello'\napi_key = 'aB3xY7mK9pQrZ2wE5vN8sD1cF4uH6tL0jI2qW'\n"

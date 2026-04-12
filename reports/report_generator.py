@@ -182,6 +182,12 @@ def generate_scan_report(
                 f"- **Secret type:** {f.secret_type.value}",
                 f"- **Confidence:** {cf.confidence:.0%}",
                 f"- **Entropy corroboration:** {'Yes' if cf.entropy_corroboration else 'No'}",
+                (
+                    f"- **Cross-file correlation:** Yes "
+                    f"({cf.correlated_file_count} files share the token fingerprint)"
+                    if cf.cross_file_corroboration
+                    else "- **Cross-file correlation:** No"
+                ),
                 "",
                 f"**Excerpt (masked):**",
                 "",

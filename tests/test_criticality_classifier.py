@@ -1,4 +1,5 @@
-from classifiers.criticality_classifier import classify_finding
+from classifiers.criticality_classifier import classify_all, classify_finding
+from detectors.entropy_detector import EntropyFinding
 from detectors.regex_detector import Criticality, Finding, SecretType
 
 
@@ -16,6 +17,22 @@ def _finding(
         line_number=3,
         masked_excerpt="api_****",
         confidence=confidence,
+    )
+
+
+def _entropy(
+    *,
+    file_path: str,
+    fingerprint: str = "shared-token-fingerprint",
+) -> EntropyFinding:
+    return EntropyFinding(
+        file_path=file_path,
+        line_number=3,
+        token="aB3x****[36chars]",
+        entropy=4.9,
+        masked_excerpt='api_key = "aB3x****[36chars]"',
+        confidence=0.82,
+        token_fingerprint=fingerprint,
     )
 
 
@@ -70,3 +87,22 @@ def test_ci_pipeline_context_boosts_confidence_without_severity_jump() -> None:
     assert classified.confidence > 0.65
     assert "ci_pipeline" in classified.context_labels
     assert "CI pipeline context" in classified.rationale
+
+
+def test_classify_all_marks_cross_file_correlation_for_shared_entropy_tokens() -> None:
+    classified = classify_all(
+        [
+            _finding(file_path="src/app.py"),
+            _finding(file_path="src/worker.py"),
+        ],
+        [
+            _entropy(file_path="src/app.py"),
+            _entropy(file_path="src/worker.py"),
+        ],
+    )
+
+    assert len(classified) == 2
+    assert all(item.cross_file_corroboration is True for item in classified)
+    assert all(item.correlated_file_count == 2 for item in classified)
+    assert all(item.confidence > 0.80 for item in classified)
+    assert all("recurs across 2 files" in item.rationale for item in classified)

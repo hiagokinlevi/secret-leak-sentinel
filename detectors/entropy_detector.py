@@ -21,6 +21,7 @@ Typical entropy ranges:
 
 Default threshold: 4.5 (configurable via ENTROPY_THRESHOLD env var or policy YAML)
 """
+import hashlib
 import math
 import re
 from dataclasses import dataclass
@@ -36,6 +37,7 @@ class EntropyFinding:
     entropy: float      # Calculated Shannon entropy
     masked_excerpt: str # Context around the token, with value masked
     confidence: float   # 0.0 to 1.0 — lower than regex findings due to false positive rate
+    token_fingerprint: str = ""  # Secret-preserving digest used for cross-file correlation
 
 
 # Pattern to extract candidate tokens from a line.
@@ -79,6 +81,11 @@ def _mask_token(token: str) -> str:
     if len(token) <= 4:
         return "****"
     return token[:4] + "****" + f"[{len(token)}chars]"
+
+
+def _token_fingerprint(token: str) -> str:
+    """Return a stable, secret-preserving fingerprint for a token."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
 
 
 def scan_content_for_entropy(
@@ -132,6 +139,7 @@ def scan_content_for_entropy(
                     entropy=entropy,
                     masked_excerpt=masked[:120],
                     confidence=min(confidence, 0.95),  # Cap at 0.95; never claim certainty
+                    token_fingerprint=_token_fingerprint(token),
                 ))
 
     return findings

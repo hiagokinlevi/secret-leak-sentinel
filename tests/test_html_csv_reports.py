@@ -48,6 +48,8 @@ def _make_classified(
     secret_type: SecretType = SecretType.AWS_ACCESS_KEY,
     entropy_corroboration: bool = False,
     context_penalty: bool = False,
+    cross_file_corroboration: bool = False,
+    correlated_file_count: int = 1,
 ) -> ClassifiedFinding:
     f = Finding(
         detector_name=detector_name,
@@ -66,6 +68,8 @@ def _make_classified(
         entropy_corroboration=entropy_corroboration,
         context_penalty=context_penalty,
         context_escalation=False,
+        cross_file_corroboration=cross_file_corroboration,
+        correlated_file_count=correlated_file_count,
     )
 
 
@@ -172,6 +176,11 @@ class TestGenerateHtmlReport:
         result = generate_html_report([finding], ".")
         assert "entropy+" in result
 
+    def test_cross_file_correlation_tag(self):
+        finding = _make_classified(cross_file_corroboration=True, correlated_file_count=3)
+        result = generate_html_report([finding], ".")
+        assert "shared 3 files" in result
+
     def test_scan_path_in_report(self):
         result = generate_html_report([], "/var/scans/my-project")
         assert "/var/scans/my-project" in result
@@ -235,6 +244,8 @@ class TestGenerateCsvReport:
         assert "line_number" in headers
         assert "confidence" in headers
         assert "masked_excerpt" in headers
+        assert "cross_file_corroboration" in headers
+        assert "correlated_file_count" in headers
 
     def test_one_row_per_finding(self):
         findings = [_make_classified() for _ in range(5)]
@@ -267,6 +278,15 @@ class TestGenerateCsvReport:
         result = generate_csv_report([_make_classified(entropy_corroboration=False)])
         # false should appear at least once for this finding
         assert "false" in result
+
+    def test_cross_file_correlation_fields(self):
+        result = generate_csv_report(
+            [_make_classified(cross_file_corroboration=True, correlated_file_count=3)]
+        )
+        reader = csv.DictReader(io.StringIO(result.lstrip("\ufeff")))
+        row = next(reader)
+        assert row["cross_file_corroboration"] == "true"
+        assert row["correlated_file_count"] == "3"
 
     def test_masked_excerpt_in_row(self):
         result = generate_csv_report([_make_classified()])

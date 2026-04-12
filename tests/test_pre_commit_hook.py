@@ -256,7 +256,7 @@ class TestGitHubTokenDetection:
         assert result.total_findings >= 1
 
     def test_github_server_to_server_detected(self):
-        """ghs_ prefix (server-to-server) must be detected by the GitHub token rule."""
+        """ghs_ prefix (server-to-server) must be detected by the gh[pousr]_ pattern."""
         hook = PreCommitHook()
         content = _FAKE_GHS
         result = hook.scan_files({"config.env": content})

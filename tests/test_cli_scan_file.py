@@ -242,3 +242,54 @@ def test_scan_file_json_output_patch_mode_preserves_line_number_with_entropy_cor
     assert api_key_finding["file_path"] == "src/settings.py"
     assert api_key_finding["line_number"] == 11
     assert api_key_finding["entropy_corroboration"] is True
+
+
+def test_scan_file_json_output_includes_cross_file_correlation(tmp_path):
+    shared_token = "aB3xY7mK9pQrZ2wE5vN8sD1cF4uH6tL0jI2qW"
+    patch = tmp_path / "shared-token.diff"
+    patch.write_text(
+        "\n".join(
+            [
+                "diff --git a/src/settings.py b/src/settings.py",
+                "index 1111111..2222222 100644",
+                "--- a/src/settings.py",
+                "+++ b/src/settings.py",
+                "@@ -0,0 +1 @@",
+                f'+api_key = "{shared_token}"',
+                "diff --git a/src/worker.py b/src/worker.py",
+                "index 3333333..4444444 100644",
+                "--- a/src/worker.py",
+                "+++ b/src/worker.py",
+                "@@ -0,0 +1 @@",
+                f'+api_key = "{shared_token}"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--entropy-threshold",
+            "4.0",
+            "scan-file",
+            "--patch-mode",
+            "--json-output",
+            str(patch),
+        ],
+    )
+
+    payload = json.loads(result.output)
+
+    api_key_findings = [
+        finding
+        for finding in payload["findings"]
+        if finding["detector_name"] == "generic_api_key_assignment"
+    ]
+
+    assert result.exit_code == 1
+    assert len(api_key_findings) == 2
+    assert all(finding["cross_file_corroboration"] is True for finding in api_key_findings)
+    assert all(finding["correlated_file_count"] == 2 for finding in api_key_findings)

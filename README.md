@@ -25,6 +25,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
 - **VS Code extension scaffold** — a local editor integration runs `scan-file --json-output` and turns findings into inline diagnostics
 - **Context-aware classification** — explicit context analysis distinguishes live secret stores, CI pipelines, docs, and test fixtures to tune confidence and severity
+- **Cross-file correlation** — secret-preserving entropy fingerprints raise confidence when the same probable secret appears in multiple files
 - **Criticality classification** — multi-signal classifier assigns final severity and confidence scores
 - **Rich terminal output** — colour-coded findings table via the `rich` library
 - **Structured JSON output for file scans** — stable machine-readable payload for editor and automation integrations
@@ -243,6 +244,12 @@ such as `.env.example` and `.env.sample` stay out of that automatic escalation
 path, while documentation-oriented paths, sample fixtures, and CI workflow
 files now contribute separate context labels and confidence adjustments that
 travel through the JSON output as `context_labels`.
+
+When the entropy detector sees the same high-entropy token in more than one
+file, the classifier now correlates those matches through a secret-preserving
+fingerprint, boosts confidence, and emits `cross_file_corroboration` plus
+`correlated_file_count` in JSON and report outputs. That makes probable secret
+reuse visible without storing the raw token.
 
 SSH private-key coverage spans traditional PEM headers, encrypted PKCS#8
 blocks, SSH.com `SSH2` private-key blocks, and PuTTY `.ppk` headers so

@@ -36,6 +36,8 @@ def classified_finding_to_dict(classified_finding: ClassifiedFinding) -> dict[st
         "suppressed": finding.suppressed,
         "suppression_reason": finding.suppression_reason,
         "entropy_corroboration": classified_finding.entropy_corroboration,
+        "cross_file_corroboration": classified_finding.cross_file_corroboration,
+        "correlated_file_count": classified_finding.correlated_file_count,
         "context_penalty": classified_finding.context_penalty,
         "context_escalation": classified_finding.context_escalation,
         "context_labels": list(classified_finding.context_labels),

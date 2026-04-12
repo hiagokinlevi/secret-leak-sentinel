@@ -178,12 +178,18 @@ def _finding_card(cf: ClassifiedFinding, index: int) -> str:
             ' <span style="background:#f1f5f9;color:#64748b;padding:1px 6px;'
             'border-radius:3px;font-size:0.7rem;">low-risk ctx</span>'
         )
+    correlation_tag = ""
+    if cf.cross_file_corroboration:
+        correlation_tag = (
+            f' <span style="background:#ecfccb;color:#3f6212;padding:1px 6px;'
+            f'border-radius:3px;font-size:0.7rem;">shared {cf.correlated_file_count} files</span>'
+        )
 
     return (
         f'<div class="finding-card" style="border-left-color:{border_color};">\n'
         f'  <div class="finding-header">\n'
         f"    {_badge(cf.final_criticality)}\n"
-        f"    {entropy_tag}{context_tag}\n"
+        f"    {entropy_tag}{correlation_tag}{context_tag}\n"
         f'    <span style="font-weight:600;">{_e(f.detector_name)}</span>\n'
         f"  </div>\n"
         f'  <div class="finding-loc">'

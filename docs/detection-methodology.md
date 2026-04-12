@@ -77,6 +77,7 @@ The classifier (`classifiers/criticality_classifier.py`) combines signals from b
 |--------|--------|
 | Regex pattern matches with high specificity | High base confidence |
 | Entropy detector corroborates the same line | Confidence boost |
+| Same entropy token fingerprint recurs across multiple files | Extra confidence boost; highlights likely secret reuse |
 | File is in a `tests/` or `samples/` directory | Confidence penalty; de-escalate criticality |
 | File is in a documentation-oriented path such as `docs/` or `tutorials/` | Confidence penalty |
 | File is in a CI workflow path such as `.github/workflows/` or `.gitlab-ci.yml` | Confidence boost |
@@ -94,6 +95,12 @@ The same context engine now emits explicit `context_labels` such as
 `sample_or_test` in the JSON output. That makes downstream tooling like editor
 integrations and automation hooks aware of *why* a finding was promoted or
 penalized instead of only receiving the final severity.
+
+Cross-file correlation uses a stable fingerprint of the entropy token rather
+than the raw token itself. When that fingerprint appears in more than one file,
+the classifier adds a second confidence boost and emits
+`cross_file_corroboration` plus `correlated_file_count` so downstream tooling
+can distinguish likely secret reuse from a one-off finding.
 
 ## Policy application
 

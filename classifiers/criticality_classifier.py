@@ -20,6 +20,7 @@ Outputs
 - Classified criticality (may be escalated or de-escalated relative to the regex pattern)
 - Adjusted confidence score (0.0 to 1.0)
 - Classification rationale string (for report display)
+- Cross-file corroboration metadata when the same entropy token appears in multiple files
 """
 from dataclasses import dataclass
 from typing import Optional
@@ -40,11 +41,14 @@ class ClassifiedFinding:
     context_penalty: bool           # True if context reduced the confidence (e.g., test file)
     context_escalation: bool        # True if context raised confidence (e.g., .env file)
     context_labels: tuple[str, ...] = ()  # Explicit context labels used during classification
+    cross_file_corroboration: bool = False
+    correlated_file_count: int = 1
 
 
 def classify_finding(
     finding: Finding,
     entropy_finding: Optional[EntropyFinding] = None,
+    correlated_file_count: int = 1,
 ) -> ClassifiedFinding:
     """
     Classify a regex finding, optionally corroborated by an entropy finding.
@@ -53,6 +57,8 @@ def classify_finding(
         finding: The primary regex detector finding.
         entropy_finding: Optional entropy finding for the same file and line.
                          If provided and entropy is above threshold, confidence is boosted.
+        correlated_file_count: Number of distinct files that share the same
+                               corroborating entropy token fingerprint.
 
     Returns:
         ClassifiedFinding with adjusted criticality and confidence.
@@ -63,7 +69,9 @@ def classify_finding(
         f"Regex pattern '{finding.detector_name}' matched at line {finding.line_number}."
     ]
     entropy_corroborated = False
+    cross_file_corroborated = False
     context = analyze_context(finding.file_path)
+    correlated_file_count = max(correlated_file_count, 1)
 
     # --- Entropy corroboration ---
     if entropy_finding and entropy_finding.line_number == finding.line_number:
@@ -76,6 +84,15 @@ def classify_finding(
             f"Entropy detector corroborates ({entropy_finding.entropy:.2f} bits/char); "
             f"confidence boosted."
         )
+
+        if correlated_file_count > 1:
+            correlation_boost = min(0.04 + 0.02 * (correlated_file_count - 1), 0.12)
+            confidence = min(confidence + correlation_boost, 0.98)
+            cross_file_corroborated = True
+            rationale_parts.append(
+                f"Same high-entropy token fingerprint recurs across {correlated_file_count} files; "
+                f"cross-file confidence boosted."
+            )
 
     # --- Context analysis ---
     confidence = min(max(confidence + context.confidence_delta, 0.10), 0.98)
@@ -101,6 +118,8 @@ def classify_finding(
         context_penalty=context.is_penalty,
         context_escalation=context.is_escalation,
         context_labels=context.labels,
+        cross_file_corroboration=cross_file_corroborated,
+        correlated_file_count=correlated_file_count if cross_file_corroborated else 1,
     )
 
 
@@ -121,19 +140,36 @@ def classify_all(
     Returns:
         List of ClassifiedFinding objects, sorted by criticality (critical first).
     """
-    # Build a lookup from (file_path, line_number) -> EntropyFinding for fast matching
+    # Build a lookup from (file_path, line_number) -> EntropyFinding for fast matching.
     entropy_index: dict[tuple[str, int], EntropyFinding] = {}
+    correlated_files: dict[str, set[str]] = {}
     for ef in entropy_findings:
         key = (ef.file_path, ef.line_number)
         # If multiple entropy findings on the same line, keep the highest-entropy one
         if key not in entropy_index or ef.entropy > entropy_index[key].entropy:
             entropy_index[key] = ef
+        if ef.token_fingerprint:
+            correlated_files.setdefault(ef.token_fingerprint, set()).add(ef.file_path)
 
     classified: list[ClassifiedFinding] = []
     for finding in regex_findings:
         key = (finding.file_path, finding.line_number)
         corroborating_entropy = entropy_index.get(key)
-        classified.append(classify_finding(finding, corroborating_entropy))
+        correlated_file_count = 1
+        if corroborating_entropy and corroborating_entropy.token_fingerprint:
+            correlated_file_count = len(
+                correlated_files.get(
+                    corroborating_entropy.token_fingerprint,
+                    {corroborating_entropy.file_path},
+                )
+            )
+        classified.append(
+            classify_finding(
+                finding,
+                corroborating_entropy,
+                correlated_file_count=correlated_file_count,
+            )
+        )
 
     # Sort by criticality: critical > high > medium > low
     criticality_order = {

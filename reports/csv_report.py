@@ -7,7 +7,8 @@ spreadsheets, SIEMs, ticketing systems, and data pipelines.
 Each row represents one finding. Columns are ordered for readability and
 SIEM compatibility:
   severity, detector_name, secret_type, file_path, line_number,
-  confidence, entropy_corroboration, context_penalty, context_escalation,
+  confidence, entropy_corroboration, cross_file_corroboration,
+  correlated_file_count, context_penalty, context_escalation,
   masked_excerpt, rationale, scanned_at
 
 Design notes:
@@ -42,6 +43,8 @@ _HEADERS: list[str] = [
     "line_number",
     "confidence",
     "entropy_corroboration",
+    "cross_file_corroboration",
+    "correlated_file_count",
     "context_penalty",
     "context_escalation",
     "masked_excerpt",
@@ -63,6 +66,8 @@ def _finding_to_row(cf: ClassifiedFinding, scanned_at: str) -> list[str]:
         str(f.line_number),
         f"{cf.confidence:.3f}",
         "true" if cf.entropy_corroboration else "false",
+        "true" if cf.cross_file_corroboration else "false",
+        str(cf.correlated_file_count),
         "true" if cf.context_penalty       else "false",
         "true" if cf.context_escalation    else "false",
         safe_excerpt,
