@@ -82,7 +82,6 @@ def _mask_token(token: str) -> str:
         return "****"
     return token[:4] + "****" + f"[{len(token)}chars]"
 
-
 def _token_fingerprint(token: str) -> str:
     """Return a stable, secret-preserving fingerprint for a token."""
     return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]

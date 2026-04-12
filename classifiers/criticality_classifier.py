@@ -26,7 +26,11 @@ from dataclasses import dataclass
 from typing import Optional
 
 from classifiers.context_analyzer import analyze_context
-from detectors.regex_detector import Criticality, Finding
+from classifiers.cross_file_correlation import (
+    CrossFileCorrelation,
+    correlate_entropy_findings,
+)
+from detectors.regex_detector import Criticality, Finding, SecretType
 from detectors.entropy_detector import EntropyFinding
 
 
@@ -123,6 +127,67 @@ def classify_finding(
     )
 
 
+def _apply_cross_file_correlation(
+    classified: ClassifiedFinding,
+    correlation: CrossFileCorrelation,
+) -> ClassifiedFinding:
+    """Boost a classified finding when the same entropy token appears in multiple files."""
+    criticality = classified.final_criticality
+    confidence = classified.confidence
+    rationale_parts = [classified.rationale]
+
+    if correlation.distinct_file_count >= 3 and criticality == Criticality.HIGH:
+        criticality = Criticality.CRITICAL
+        rationale_parts.append(
+            "Criticality escalated from HIGH to CRITICAL because the masked token "
+            "was reused across three or more files."
+        )
+    elif correlation.distinct_file_count >= 2 and criticality == Criticality.MEDIUM:
+        criticality = Criticality.HIGH
+        rationale_parts.append(
+            "Criticality escalated from MEDIUM to HIGH because the masked token "
+            "was reused across multiple files."
+        )
+
+    correlation_boost = 0.08 + 0.03 * max(correlation.distinct_file_count - 2, 0)
+    confidence = min(confidence + correlation_boost, 0.99)
+    rationale_parts.append(
+        "Cross-file entropy correlation confirmed the same masked token "
+        f"(fp={correlation.short_fingerprint}) in {correlation.distinct_file_count} files."
+    )
+
+    return ClassifiedFinding(
+        original_finding=classified.original_finding,
+        final_criticality=criticality,
+        confidence=round(confidence, 3),
+        rationale=" ".join(rationale_parts),
+        entropy_corroboration=classified.entropy_corroboration,
+        context_penalty=classified.context_penalty,
+        context_escalation=classified.context_escalation,
+        context_labels=classified.context_labels,
+    )
+
+
+def _build_synthetic_entropy_finding(
+    entropy_finding: EntropyFinding,
+    correlation: CrossFileCorrelation,
+) -> Finding:
+    """Create a synthetic regex-like finding for entropy-only cross-file reuse."""
+    excerpt = (
+        f"{entropy_finding.masked_excerpt} "
+        f"[reused across {correlation.distinct_file_count} files fp={correlation.short_fingerprint}]"
+    )[:120]
+    return Finding(
+        detector_name="cross_file_entropy_reuse",
+        secret_type=SecretType.GENERIC_SECRET,
+        criticality=Criticality.MEDIUM,
+        file_path=entropy_finding.file_path,
+        line_number=entropy_finding.line_number,
+        masked_excerpt=excerpt,
+        confidence=0.70,
+    )
+
+
 def classify_all(
     regex_findings: list[Finding],
     entropy_findings: list[EntropyFinding],
@@ -151,7 +216,13 @@ def classify_all(
         if ef.token_fingerprint:
             correlated_files.setdefault(ef.token_fingerprint, set()).add(ef.file_path)
 
+    correlation_index: dict[tuple[str, int], CrossFileCorrelation] = {}
+    for correlation in correlate_entropy_findings(entropy_findings):
+        for finding in correlation.findings:
+            correlation_index[(finding.file_path, finding.line_number)] = correlation
+
     classified: list[ClassifiedFinding] = []
+    covered_keys: set[tuple[str, int]] = set()
     for finding in regex_findings:
         key = (finding.file_path, finding.line_number)
         corroborating_entropy = entropy_index.get(key)

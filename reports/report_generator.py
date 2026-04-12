@@ -18,11 +18,12 @@ Usage
     report_md = generate_scan_report(classified_findings, scan_path="./my-project")
     saved = save_scan_report(report_md, output_dir="./scan-results")
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from classifiers.criticality_classifier import ClassifiedFinding
+from classifiers.cross_file_correlation import correlate_entropy_findings
 from detectors.entropy_detector import EntropyFinding
 from detectors.regex_detector import Criticality
 
@@ -124,8 +125,9 @@ def generate_scan_report(
     Returns:
         Multi-line Markdown string.
     """
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     entropy_findings = entropy_findings or []
+    cross_file_correlations = correlate_entropy_findings(entropy_findings)
 
     # Count findings by severity
     counts: dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
@@ -139,6 +141,7 @@ def generate_scan_report(
         f"**Scanned at:** {now}  ",
         f"**Total findings:** {len(classified_findings)}  ",
         f"**Entropy findings:** {len(entropy_findings)}  ",
+        f"**Cross-file correlations:** {len(cross_file_correlations)}  ",
         "",
         "---",
         "",
@@ -248,6 +251,33 @@ def generate_scan_report(
             lines.append(f"\n_... and {len(entropy_findings) - 20} more (see JSON output)._")
         lines.append("")
 
+    if cross_file_correlations:
+        lines += [
+            "---",
+            "",
+            "## Cross-File Correlated Entropy Tokens",
+            "",
+            "These masked high-entropy tokens appeared in multiple files, which is a stronger "
+            "signal of propagated secret reuse than a one-off entropy hit.",
+            "",
+            "| Token (masked) | Files | Occurrences | Fingerprint | Locations |",
+            "|----------------|-------|-------------|-------------|-----------|",
+        ]
+        for correlation in cross_file_correlations[:10]:
+            locations = ", ".join(f"`{path}`" for path in correlation.file_paths[:3])
+            if len(correlation.file_paths) > 3:
+                locations += f", +{len(correlation.file_paths) - 3} more"
+            lines.append(
+                f"| `{correlation.masked_token}` | {correlation.distinct_file_count} "
+                f"| {correlation.occurrence_count} | `{correlation.short_fingerprint}` | "
+                f"{locations} |"
+            )
+        if len(cross_file_correlations) > 10:
+            lines.append(
+                f"\n_... and {len(cross_file_correlations) - 10} more correlated token groups._"
+            )
+        lines.append("")
+
     # Footer
     lines += [
         "---",
@@ -273,7 +303,7 @@ def save_scan_report(report_markdown: str, output_dir: str | Path) -> Path:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     report_path = out / f"secret_scan_{timestamp}.md"
     report_path.write_text(report_markdown, encoding="utf-8")
 
