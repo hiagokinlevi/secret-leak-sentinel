@@ -153,7 +153,7 @@ def generate_scan_report(
         "",
     ]
 
-    if not classified_findings:
+    if not classified_findings and not entropy_findings:
         lines += [
             "> No secrets detected.",
             "",
