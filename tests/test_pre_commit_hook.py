@@ -5,7 +5,7 @@ Comprehensive test suite for the pre-commit secret scanning hook.
 
 Covers:
   - Clean files produce exit_code 0
-  - Detection of every built-in pattern (SC-001 through SC-008)
+  - Detection of every built-in pattern (SC-001 through SC-009)
   - Severity ordering and comparison via SeverityLevel
   - HookConfig.fail_level property including unknown/edge-case values
   - skip_paths and skip_extensions filtering
@@ -46,6 +46,7 @@ _FAKE_STRIPE = "sk_live_" + "aBcDeFgHiJkLmNoPqRsTuVwX"
 _FAKE_SLACK_BOT = "xoxb-" + "123456789012-" + "123456789012-" + "abcdefghijklmnopqrstuvwx"
 _FAKE_SLACK_APP = "xapp-1-" + "ABCD1234EFGH5678-" + "IJKL9012MNOP3456-" + "qrstuvwxyzabcdef"
 _FAKE_NPM = "npm_" + "n" * 36
+_FAKE_GCP_OAUTH = "ya29." + "x" * 55
 
 
 # =============================================================================
@@ -317,7 +318,7 @@ class TestPasswordPatternDetection:
         """MEDIUM finding must NOT block when fail_on_severity=HIGH."""
         cfg = HookConfig(fail_on_severity="HIGH")
         hook = PreCommitHook(cfg)
-        # SC-004 is MEDIUM; SC-001/002/003/006/007/008 are CRITICAL/HIGH — only use a
+        # SC-004 is MEDIUM; SC-001/002/003/006/007/008/009 are CRITICAL/HIGH — only use a
         # pattern that exclusively matches MEDIUM
         content = "api_key = 'shortshortshortshortkey1'"
         result = hook.scan_files({"config.ini": content})
@@ -416,6 +417,24 @@ class TestNpmTokenDetection:
         hook = PreCommitHook()
         result = hook.scan_files({"example.env": "npm_short_example_token"})
         assert result.total_findings == 0
+
+
+# =============================================================================
+# SC-009 — GCP OAuth access token (HIGH)
+# =============================================================================
+
+class TestGCPOAuthTokenDetection:
+    """Tests for SC-009: GCP OAuth access tokens (HIGH)."""
+
+    def test_gcp_oauth_access_token_detected(self):
+        hook = PreCommitHook()
+        result = hook.scan_files({".env": f"GCP_ACCESS_TOKEN={_FAKE_GCP_OAUTH}"})
+        assert result.total_findings >= 1
+
+    def test_gcp_oauth_access_token_blocks_with_high_threshold(self):
+        hook = PreCommitHook(HookConfig(fail_on_severity="HIGH"))
+        result = hook.scan_files({"deploy.env": _FAKE_GCP_OAUTH})
+        assert result.is_blocked is True
 
 
 # =============================================================================

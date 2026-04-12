@@ -194,6 +194,13 @@ DETECTOR_PATTERNS: list[DetectorPattern] = [
         description="GCP service account JSON client_email field",
     ),
     DetectorPattern(
+        name="gcp_oauth_access_token",
+        pattern=r"\bya29\.[A-Za-z0-9_-]{50,}\b",
+        secret_type=SecretType.CLOUD_CREDENTIAL,
+        criticality=Criticality.HIGH,
+        description="GCP OAuth access token",
+    ),
+    DetectorPattern(
         name="vault_token_modern",
         pattern=r"\b(?:hvs|hvb|hvr)\.[A-Za-z0-9_-]{24,}\b",
         secret_type=SecretType.API_TOKEN,

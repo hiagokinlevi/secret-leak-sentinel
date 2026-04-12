@@ -259,6 +259,9 @@ _BUILTIN_PATTERNS: List[Tuple[str, str, re.Pattern]] = [
     # npm access tokens are high-signal bearer credentials that should never
     # appear in tracked files or CI scripts.
     ("SC-008", "HIGH", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
+
+    # GCP OAuth access tokens use the ya29. prefix and should be blocked.
+    ("SC-009", "HIGH", re.compile(r"\bya29\.[A-Za-z0-9_-]{50,}\b")),
 ]
 
 

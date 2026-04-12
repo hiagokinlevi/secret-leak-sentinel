@@ -277,6 +277,20 @@ class TestCloudCredentialDetection:
         assert client_email[0].criticality == Criticality.HIGH
         assert client_email[0].secret_type == SecretType.CLOUD_CREDENTIAL
 
+    def test_detects_gcp_oauth_access_token(self):
+        token = "ya29." + ("A" * 55)
+        findings = scan_content(f"GCP_ACCESS_TOKEN={token}", ".env")
+        oauth = [f for f in findings if f.detector_name == "gcp_oauth_access_token"]
+        assert len(oauth) == 1
+        assert oauth[0].criticality == Criticality.HIGH
+        assert oauth[0].secret_type == SecretType.CLOUD_CREDENTIAL
+
+    def test_does_not_flag_short_gcp_oauth_access_token(self):
+        token = "ya29." + ("A" * 20)
+        findings = scan_content(f"GCP_ACCESS_TOKEN={token}", ".env.example")
+        oauth = [f for f in findings if f.detector_name == "gcp_oauth_access_token"]
+        assert oauth == []
+
     def test_cloud_credentials_are_masked(self):
         content = '{"private_key_id": "' + ("b" * 40) + '"}'
         findings = scan_content(content, "service-account.json")

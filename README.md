@@ -17,7 +17,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 ## Features
 
 - **Regex detection** — curated patterns for AWS keys, GitHub tokens, PEM, SSH2, and PuTTY private-key headers, connection strings, password assignments, and more
-- **Cloud and SaaS credential coverage** — detects Azure SAS URLs, Azure storage connection strings, GCP service account JSON key indicators, live Stripe secret/restricted keys, Twilio auth tokens, SendGrid API keys, Slack bearer/app tokens, npm access tokens, HashiCorp Vault tokens, and weak or unsigned JWT bearer tokens
+- **Cloud and SaaS credential coverage** — detects Azure SAS URLs, Azure storage connection strings, GCP service account JSON key indicators, GCP OAuth access tokens, live Stripe secret/restricted keys, Twilio auth tokens, SendGrid API keys, Slack bearer/app tokens, npm access tokens, HashiCorp Vault tokens, and weak or unsigned JWT bearer tokens
 - **Entropy detection** — flags high-entropy strings that pattern matching alone might miss
 - **Git integration** — scan staged files, working tree, or full commit history with commit-level attribution and blob deduplication
 - **Pre-commit hook** — drop-in shell script to block secrets at commit time
@@ -113,6 +113,7 @@ chmod +x .git/hooks/pre-push
 | Azure SAS URL               | `https://...blob.core.windows.net/...?...&sig=...` | CRITICAL |
 | Azure storage connection string | `DefaultEndpointsProtocol=...;AccountKey=...` | CRITICAL |
 | GCP service account key JSON | `"private_key_id": "...", "client_email": "...gserviceaccount.com"` | CRITICAL / HIGH |
+| GCP OAuth access token      | `ya29....`                             | HIGH        |
 | HashiCorp Vault token       | `hvs....`, `hvb....`, or `X-Vault-Token: s....` | CRITICAL |
 | Weak or unsigned JWT bearer token | `Bearer eyJ...` with `alg: none` or `HS256/384/512` | HIGH |
 | PEM / PKCS#8 Private Key    | `-----BEGIN ... PRIVATE KEY-----`      | CRITICAL    |
@@ -215,7 +216,8 @@ npm test
 ## Cloud credential notes
 
 `secret-leak-sentinel` now treats Azure SAS URLs, Azure storage
-connection strings, and GCP service account JSON key indicators as
+connection strings, GCP service account JSON key indicators, and
+`ya29.`-prefixed GCP OAuth access tokens as
 first-class high-signal detections. The regexes stay intentionally narrow so
 they catch production-shaped cloud credentials without broadly flagging
 ordinary query strings or unrelated JSON documents.
