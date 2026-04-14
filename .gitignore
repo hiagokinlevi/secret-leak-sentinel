@@ -6,3 +6,4 @@ __pycache__/
 integrations/vscode/node_modules/
 integrations/vscode/.vscode-test/
 integrations/vscode/*.vsix
+publish-bridge/

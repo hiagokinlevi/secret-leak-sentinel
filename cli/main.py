@@ -125,6 +125,8 @@ def scan_path(ctx: click.Context, path: str, ignore: tuple) -> None:
     ignore_patterns: list[str] = []
     for pattern in ignore:
         ignore_patterns.extend(p.strip() for p in pattern.split(",") if p.strip())
+    if "publish-bridge" not in ignore_patterns:
+        ignore_patterns.append("publish-bridge")
 
     console.print(f"\n[bold]Scanning:[/bold] {path}")
     console.print(f"[bold]Profile:[/bold]  {opts['policy_profile']}")
