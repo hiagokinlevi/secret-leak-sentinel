@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+import scanners.filesystem_scanner as filesystem_scanner
 from scanners.filesystem_scanner import (
     _is_binary_file,
     _matches_any_pattern,
@@ -118,6 +119,25 @@ class TestScanDirectory:
 
         symlink_path = tmp_path / "linked.py"
         symlink_path.symlink_to(outside_file)
+
+        regex_findings, entropy_findings = scan_directory(str(tmp_path), entropy_enabled=True)
+        assert regex_findings == []
+        assert entropy_findings == []
+
+    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="Named pipes are not supported")
+    def test_skips_named_pipes_before_binary_detection(self, tmp_path, monkeypatch):
+        """Named pipes should be rejected before any attempt to open or read them."""
+        fifo_path = tmp_path / "blocked.pipe"
+        os.mkfifo(fifo_path)
+
+        original = filesystem_scanner._is_binary_file
+
+        def guard(path):
+            if path == fifo_path:
+                raise AssertionError("Named pipes must be skipped before binary detection")
+            return original(path)
+
+        monkeypatch.setattr(filesystem_scanner, "_is_binary_file", guard)
 
         regex_findings, entropy_findings = scan_directory(str(tmp_path), entropy_enabled=True)
         assert regex_findings == []

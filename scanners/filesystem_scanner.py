@@ -26,6 +26,7 @@ Usage
 import fnmatch
 import os
 import re
+import stat
 from pathlib import Path
 from typing import Optional
 
@@ -70,6 +71,20 @@ def _is_binary_file(path: Path) -> bool:
         return b"\x00" in chunk  # Null bytes are a reliable binary indicator
     except OSError:
         return True  # Cannot read; skip it
+
+
+def _is_regular_file(path: Path) -> bool:
+    """
+    Return True only for regular files.
+
+    Named pipes, device nodes, sockets, and symlinks are skipped so scans do
+    not block or escape the repository root when os.walk encounters them.
+    """
+    try:
+        mode = path.stat(follow_symlinks=False).st_mode
+    except OSError:
+        return False
+    return stat.S_ISREG(mode)
 
 
 def _matches_any_pattern(path: Path, root: Path, patterns: list[str]) -> bool:
@@ -149,9 +164,10 @@ def scan_directory(
                 files_skipped += 1
                 continue
 
-            # Refuse symlinked files so scans cannot follow links outside the root.
-            if file_path.is_symlink():
-                logger.debug("Symlinked file skipped", path=str(file_path))
+            # Refuse non-regular files so scans do not block on FIFOs or follow
+            # symlinks outside the root.
+            if not _is_regular_file(file_path):
+                logger.debug("Non-regular file skipped", path=str(file_path))
                 files_skipped += 1
                 continue
 

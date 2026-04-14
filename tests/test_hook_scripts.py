@@ -123,3 +123,71 @@ EOF
     assert args[:3] == ["--fail-on", "high", "--entropy"]
     assert "scan-file" in args
     assert "--patch-mode" in args
+
+
+def test_pre_push_hook_scans_new_branch_from_local_sha(tmp_path):
+    stub_dir = tmp_path / "bin"
+    stub_dir.mkdir()
+    log_path = tmp_path / "pre-push-args.log"
+    git_log_args_path = tmp_path / "git-log-args.log"
+
+    _write_executable(
+        stub_dir / "git",
+        f"""
+        #!/usr/bin/env bash
+        if [ "$1" = "log" ]; then
+            printf '%s\n' "$@" > "{git_log_args_path}"
+            echo "abcdef1234567890"
+            exit 0
+        fi
+
+        if [ "$1" = "show" ]; then
+            cat <<'EOF'
+diff --git a/src/app.py b/src/app.py
+index 1111111..2222222 100644
+--- a/src/app.py
++++ b/src/app.py
+@@ -0,0 +1 @@
++AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
+EOF
+            exit 0
+        fi
+
+        exit 1
+        """,
+    )
+
+    _write_executable(
+        stub_dir / "secret-leak-sentinel",
+        f"""
+        #!/usr/bin/env bash
+        printf '%s\n' "$@" > "{log_path}"
+        exit 0
+        """,
+    )
+
+    env = os.environ.copy()
+    env["PATH"] = f"{stub_dir}:{env.get('PATH', '')}"
+
+    result = subprocess.run(
+        ["bash", str(PRE_PUSH_HOOK)],
+        cwd=tmp_path,
+        env=env,
+        input="refs/heads/feature abcdef1234567890 refs/remotes/origin/feature 0000000000000000000000000000000000000000\n",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    git_log_args = git_log_args_path.read_text(encoding="utf-8").splitlines()
+    assert git_log_args == [
+        "log",
+        "--pretty=format:%H",
+        "-n",
+        "50",
+        "abcdef1234567890",
+    ]
+    args = log_path.read_text(encoding="utf-8").splitlines()
+    assert "scan-file" in args
+    assert "--patch-mode" in args
