@@ -53,15 +53,7 @@ Planned development direction for `secret-leak-sentinel`.
 
 - [ ] ML-based classifier to reduce false positive rate on entropy findings
 - [x] Context-aware analysis (is the file a test fixture? a documentation example?)
-- [x] Cross-file correlation (e.g., same high-entropy string appears in multiple files)
-- [x] Severity escalation when a pattern is found inside a `.env` file specifically
+- [x] Cross-file correlation (e.g., same high-ent
 
----
-
-## Future / Under consideration
-
-- SARIF output for GitHub Advanced Security / Code Scanning integration
-- API server mode for integration with other tooling
-- Web dashboard for tracking findings over time across multiple repositories
-- Plugin interface for custom detector patterns
-- Automatic rotation guidance per secret type (links to provider-specific rotation docs)
+## Automated Completions
+- [x] Core Secret Detection Engine (cycle 1)
