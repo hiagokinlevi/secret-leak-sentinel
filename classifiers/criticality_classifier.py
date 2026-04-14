@@ -165,6 +165,8 @@ def _apply_cross_file_correlation(
         context_penalty=classified.context_penalty,
         context_escalation=classified.context_escalation,
         context_labels=classified.context_labels,
+        cross_file_corroboration=classified.cross_file_corroboration,
+        correlated_file_count=classified.correlated_file_count,
     )
 
 
@@ -234,13 +236,28 @@ def classify_all(
                     {corroborating_entropy.file_path},
                 )
             )
-        classified.append(
-            classify_finding(
-                finding,
-                corroborating_entropy,
-                correlated_file_count=correlated_file_count,
-            )
+        result = classify_finding(
+            finding,
+            corroborating_entropy,
+            correlated_file_count=correlated_file_count,
         )
+        if key in correlation_index:
+            result = _apply_cross_file_correlation(result, correlation_index[key])
+        classified.append(result)
+        covered_keys.add(key)
+
+    for key, entropy_finding in entropy_index.items():
+        correlation = correlation_index.get(key)
+        if not correlation or key in covered_keys:
+            continue
+
+        synthetic_finding = _build_synthetic_entropy_finding(entropy_finding, correlation)
+        result = classify_finding(
+            synthetic_finding,
+            entropy_finding,
+            correlated_file_count=correlation.distinct_file_count,
+        )
+        classified.append(_apply_cross_file_correlation(result, correlation))
 
     # Sort by criticality: critical > high > medium > low
     criticality_order = {
