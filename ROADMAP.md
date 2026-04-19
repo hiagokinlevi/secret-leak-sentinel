@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Secret Verification Framework (cycle 17)
+- [x] CLI Scanner Interface (cycle 18)
