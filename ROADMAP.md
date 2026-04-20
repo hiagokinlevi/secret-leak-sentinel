@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] SARIF Output for Security Tooling (cycle 19)
+- [x] Allowlist and Ignore Rules System (cycle 20)
