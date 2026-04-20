@@ -1,0 +1,25 @@
+# secret-leak-sentinel ignore rules
+#
+# One rule per line. Blank lines and lines starting with # are ignored.
+#
+# Supported rule types:
+#   path:<glob>                  Ignore files/paths matching glob
+#   regex:<pattern>              Ignore findings whose matched value matches regex
+#   finding:<detector_id>        Ignore all findings from a detector/pattern id
+#   file_regex:<glob>::<pattern> Ignore regex only within files matching glob
+#
+# Examples:
+# path:tests/fixtures/**
+# path:**/*.pem
+# regex:^(AKIA[0-9A-Z]{16})$
+# finding:generic_password_assignment
+# file_regex:docs/**::(?i)example[_-]?token
+#
+# Inline ignore comments (in source files):
+# Add one of the following to suppress a finding on that line:
+#   sls:ignore
+#   sls:ignore <detector_id>
+#
+# Example in code:
+#   API_KEY = "not-a-real-key"  # sls:ignore
+#   PASSWORD = "example"        # sls:ignore generic_password_assignment
