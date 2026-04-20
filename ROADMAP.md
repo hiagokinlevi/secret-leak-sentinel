@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] CLI Scanner Interface (cycle 18)
+- [x] SARIF Output for Security Tooling (cycle 19)
