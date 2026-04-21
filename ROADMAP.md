@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Incremental Scan Mode (cycle 22)
+- [x] Structured Findings and Severity Scoring (cycle 23)
