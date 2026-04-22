@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Automatic Secret Value Redaction in Reports (cycle 24)
+- [x] Add Baseline Comparison Mode to Suppress Pre-Existing Findings (cycle 25)
