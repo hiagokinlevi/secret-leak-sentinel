@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add Baseline Comparison Mode to Suppress Pre-Existing Findings (cycle 25)
+- [x] Introduce Exit-Code Policy Flags by Severity Threshold (cycle 26)
