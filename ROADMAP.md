@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Introduce Exit-Code Policy Flags by Severity Threshold (cycle 26)
+- [x] Support Inline Ignore Pragmas for One-Line False Positive Control (cycle 27)
