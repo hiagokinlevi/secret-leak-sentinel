@@ -25,14 +25,5 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **Pre-push hook** — scans outgoing commit patches so `--no-verify` commits still get a last defensive check
 - **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
 - **VS Code extension scaffold** — a local editor integration runs `scan-file --json-output` and turns findings into inline diagnostics
-- **Baseline comparison mode** — pass `--baseline previous.json` to suppress unchanged findings from a prior JSON report so CI fails only on newly introduced secrets
-
-### Baseline example
-
-```bash
-# First run (store baseline)
-secret-leak-sentinel scan-path . --json-output baseline.json || true
-
-# CI run (only new findings remain)
-secret-leak-sentinel scan-path . --baseline baseline.json --json-output report.json
-```
+- **Baseline comparison mode** — pass `--baseline previous.json` to
+- **Output safety guardrail** — pass `--fail-on-unmasked` to `scan-path`, `scan-staged`, or `scan-git` to force a non-zero exit if serialized findings/log payload appears to contain raw (unredacted) secret material
