@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Emit Detection Rule ID and Match Snippet Fingerprint in JSON Output (cycle 28)
+- [x] Add Configurable Entropy Length Guardrail (cycle 29)
