@@ -1,86 +1,108 @@
 from __future__ import annotations
 
-import hashlib
 import json
+import os
+import re
+import sys
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Set, Tuple
+from typing import Any
 
 import click
+
+from scanners.filesystem_scanner import scan_path as scanner_scan_path
+from scanners.git_scanner import scan_git_history, scan_staged_changes
+
+
+MASK_TOKENS = ("***", "[REDACTED]", "<redacted>", "(redacted)")
+
+
+def _looks_unmasked(value: Any) -> bool:
+    if value is None:
+        return False
+    text = str(value)
+    if not text:
+        return False
+    # If it contains strong secret-like material and no masking token, treat as unmasked.
+    secret_like = [
+        r"AKIA[0-9A-Z]{16}",
+        r"ghp_[A-Za-z0-9]{20,}",
+        r"sk_live_[A-Za-z0-9]{16,}",
+        r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
+        r"(?i)(password|token|secret|api[_-]?key)\s*[:=]\s*[^\s]{6,}",
+    ]
+    if not any(re.search(p, text) for p in secret_like):
+        return False
+    return not any(tok in text for tok in MASK_TOKENS)
+
+
+def _iter_strings(obj: Any):
+    if isinstance(obj, dict):
+        for v in obj.values():
+            yield from _iter_strings(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _iter_strings(v)
+    elif isinstance(obj, (str, int, float, bool)):
+        yield str(obj)
+
+
+def _enforce_masked_only(payload: dict[str, Any], fail_on_unmasked: bool) -> None:
+    if not fail_on_unmasked:
+        return
+    for s in _iter_strings(payload):
+        if _looks_unmasked(s):
+            raise click.ClickException(
+                "Unmasked secret-like material detected in output payload while --fail-on-unmasked is enabled."
+            )
+
+
+def _scan_common_options(fn):
+    fn = click.option("--json-output", "json_output", type=click.Path(dir_okay=False, path_type=Path), default=None)(fn)
+    fn = click.option("--fail-on-unmasked", is_flag=True, default=False, help="Exit non-zero if any output payload appears to contain unmasked secret material.")(fn)
+    return fn
 
 
 @click.group()
 def cli() -> None:
-    pass
-
-
-def _load_json(path: Path) -> Dict[str, Any]:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def _line_hash(value: Any) -> str:
-    return hashlib.sha256(str(value).encode("utf-8")).hexdigest()[:16]
-
-
-def _fingerprint(finding: Dict[str, Any]) -> Tuple[str, str, str]:
-    rule_id = str(finding.get("rule_id", ""))
-    file_path = str(finding.get("file", finding.get("path", "")))
-    line = finding.get("line", finding.get("line_number", ""))
-    return (rule_id, file_path, _line_hash(line))
-
-
-def _extract_findings(report: Dict[str, Any]) -> List[Dict[str, Any]]:
-    raw = report.get("findings", [])
-    return raw if isinstance(raw, list) else []
-
-
-def _baseline_fingerprints(baseline_path: Path) -> Set[Tuple[str, str, str]]:
-    baseline = _load_json(baseline_path)
-    return {_fingerprint(f) for f in _extract_findings(baseline)}
-
-
-def _apply_baseline_suppression(
-    findings: List[Dict[str, Any]], baseline_path: Path | None
-) -> List[Dict[str, Any]]:
-    if baseline_path is None:
-        return findings
-    known = _baseline_fingerprints(baseline_path)
-    return [f for f in findings if _fingerprint(f) not in known]
+    """secret-leak-sentinel CLI."""
 
 
 @cli.command("scan-path")
-@click.argument("target", type=click.Path(path_type=Path))
-@click.option("--json-output", "json_output", type=click.Path(path_type=Path), default=None)
-@click.option(
-    "--baseline",
-    "baseline",
-    type=click.Path(path_type=Path, exists=True, dir_okay=False),
-    default=None,
-    help="Path to previous JSON report; unchanged findings are suppressed.",
-)
-def scan_path(target: Path, json_output: Path | None, baseline: Path | None) -> None:
-    # NOTE: Keep existing scanner wiring untouched; only post-process findings.
-    # This placeholder expects existing project scanner integration to provide `report`.
-    report: Dict[str, Any] = {
-        "target": str(target),
-        "findings": [],
-    }
-
-    findings = _extract_findings(report)
-    filtered = _apply_baseline_suppression(findings, baseline)
-    report["findings"] = filtered
-    report["summary"] = {
-        **(report.get("summary") or {}),
-        "total_findings": len(filtered),
-    }
-
-    payload = json.dumps(report, indent=2)
+@click.argument("target", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@_scan_common_options
+def scan_path_cmd(target: Path, json_output: Path | None, fail_on_unmasked: bool) -> None:
+    findings = scanner_scan_path(str(target))
+    payload = {"target": str(target), "findings": findings, "count": len(findings)}
+    _enforce_masked_only(payload, fail_on_unmasked)
     if json_output:
-        json_output.write_text(payload + "\n", encoding="utf-8")
-    else:
-        click.echo(payload)
+        json_output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    click.echo(json.dumps(payload, indent=2))
+    raise SystemExit(1 if findings else 0)
 
-    raise SystemExit(1 if len(filtered) > 0 else 0)
+
+@cli.command("scan-staged")
+@_scan_common_options
+def scan_staged_cmd(json_output: Path | None, fail_on_unmasked: bool) -> None:
+    findings = scan_staged_changes()
+    payload = {"mode": "staged", "findings": findings, "count": len(findings)}
+    _enforce_masked_only(payload, fail_on_unmasked)
+    if json_output:
+        json_output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    click.echo(json.dumps(payload, indent=2))
+    raise SystemExit(1 if findings else 0)
+
+
+@cli.command("scan-git")
+@click.option("--max-commits", type=int, default=100, show_default=True)
+@_scan_common_options
+def scan_git_cmd(max_commits: int, json_output: Path | None, fail_on_unmasked: bool) -> None:
+    findings = scan_git_history(max_commits=max_commits)
+    payload = {"mode": "git-history", "max_commits": max_commits, "findings": findings, "count": len(findings)}
+    _enforce_masked_only(payload, fail_on_unmasked)
+    if json_output:
+        json_output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    click.echo(json.dumps(payload, indent=2))
+    raise SystemExit(1 if findings else 0)
 
 
 if __name__ == "__main__":
