@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Support Inline Ignore Pragmas for One-Line False Positive Control (cycle 27)
+- [x] Emit Detection Rule ID and Match Snippet Fingerprint in JSON Output (cycle 28)
