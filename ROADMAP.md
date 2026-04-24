@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add Secret Type Filtering Flags (`--only-type` / `--exclude-type`) (cycle 31)
+- [x] Add `--max-findings` scan cap for fail-fast CI runs (cycle 32)
