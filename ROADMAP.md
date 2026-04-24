@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--fail-on-unmasked` flag to enforce masked-only console output (cycle 30)
+- [x] Add Secret Type Filtering Flags (`--only-type` / `--exclude-type`) (cycle 31)
