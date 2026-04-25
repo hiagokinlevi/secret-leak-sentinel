@@ -2,100 +2,90 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 import click
 
-from cli.main import cli as _root_cli
+from scanners.filesystem_scanner import scan_path as scanner_scan_path
+from scanners.git_scanner import scan_git_history, scan_staged_files
+from reports.markdown_report import generate_markdown_report
 
 
-def _filter_findings_by_rule_ids(findings: Sequence[dict], exclude_rule_ids: Optional[Iterable[str]]) -> List[dict]:
-    """Return findings with any excluded detector rule IDs removed."""
-    excluded = {rid.strip() for rid in (exclude_rule_ids or []) if rid and rid.strip()}
-    if not excluded:
-        return list(findings)
-    filtered: List[dict] = []
-    for finding in findings:
-        rule_id = finding.get("rule_id") or finding.get("detector_rule_id")
-        if rule_id in excluded:
-            continue
-        filtered.append(finding)
-    return filtered
+SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
 
-def _apply_runtime_exclusions_to_result(result: dict, exclude_rule_ids: Optional[Iterable[str]]) -> dict:
-    """Apply runtime exclusions immediately before output/report generation."""
-    if not isinstance(result, dict):
-        return result
-    findings = result.get("findings")
-    if not isinstance(findings, list):
-        return result
-    filtered = _filter_findings_by_rule_ids(findings, exclude_rule_ids)
-    if len(filtered) == len(findings):
-        return result
-    updated = dict(result)
-    updated["findings"] = filtered
-    # Keep common counters coherent when present.
-    if "total_findings" in updated:
-        updated["total_findings"] = len(filtered)
-    if "finding_count" in updated:
-        updated["finding_count"] = len(filtered)
-    return updated
+def min_severity_option(func):
+    return click.option(
+        "--min-severity",
+        type=click.Choice(["low", "medium", "high", "critical"], case_sensitive=False),
+        default="low",
+        show_default=True,
+        help="Only emit findings at or above this severity.",
+    )(func)
 
 
-@click.group(cls=click.Group, invoke_without_command=False)
+def _normalize_severity(value: Optional[str]) -> str:
+    if not value:
+        return "low"
+    return str(value).strip().lower()
+
+
+def _passes_min_severity(finding: Dict[str, Any], min_severity: str) -> bool:
+    threshold = SEVERITY_ORDER.get(_normalize_severity(min_severity), 0)
+    sev = _normalize_severity(finding.get("severity"))
+    rank = SEVERITY_ORDER.get(sev, 0)
+    return rank >= threshold
+
+
+def _apply_min_severity(findings: List[Dict[str, Any]], min_severity: str) -> List[Dict[str, Any]]:
+    return [f for f in findings if _passes_min_severity(f, min_severity)]
+
+
+def _emit_results(findings: List[Dict[str, Any]], json_output: Optional[str], report: Optional[str]) -> None:
+    if json_output:
+        Path(json_output).write_text(json.dumps(findings, indent=2), encoding="utf-8")
+
+    if report:
+        markdown = generate_markdown_report(findings)
+        Path(report).write_text(markdown, encoding="utf-8")
+
+    click.echo(json.dumps(findings, indent=2))
+
+
+@click.group()
 def cli() -> None:
-    """secret-leak-sentinel CLI."""
+    pass
 
 
-# Delegate all existing commands from the project CLI.
-for _name, _cmd in _root_cli.commands.items():
-    cli.add_command(_cmd, _name)
+@cli.command("scan-path")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--json-output", type=click.Path(path_type=Path), default=None)
+@click.option("--report", type=click.Path(path_type=Path), default=None)
+@min_severity_option
+def scan_path_cmd(path: Path, json_output: Optional[Path], report: Optional[Path], min_severity: str) -> None:
+    findings = scanner_scan_path(path)
+    findings = _apply_min_severity(findings, min_severity)
+    _emit_results(findings, str(json_output) if json_output else None, str(report) if report else None)
 
 
-def _patch_scan_command(name: str) -> None:
-    cmd = cli.commands.get(name)
-    if cmd is None:
-        return
-
-    original_callback = cmd.callback
-    if original_callback is None:
-        return
-
-    @click.option(
-        "--exclude-rule-id",
-        "exclude_rule_ids",
-        multiple=True,
-        help="Detector rule ID to exclude at runtime. Repeatable.",
-    )
-    def _wrapped_option(**kwargs):
-        return kwargs
-
-    # Rebuild command params by appending new option.
-    cmd.params.append(_wrapped_option.__click_params__[0])
-
-    def _wrapped_callback(*args, **kwargs):
-        exclude_rule_ids = kwargs.pop("exclude_rule_ids", ())
-        result = original_callback(*args, **kwargs)
-        # If callback already emits output and returns None, we cannot rewrite payload.
-        # For dict-like return flows, normalize before renderers consume it.
-        if isinstance(result, dict):
-            result = _apply_runtime_exclusions_to_result(result, exclude_rule_ids)
-
-            # Best-effort JSON output rewrite for callbacks that pass through output paths.
-            json_output = kwargs.get("json_output") or result.get("json_output")
-            if json_output:
-                try:
-                    Path(json_output).write_text(json.dumps(result, indent=2), encoding="utf-8")
-                except Exception:
-                    pass
-        return result
-
-    cmd.callback = _wrapped_callback
+@cli.command("scan-staged")
+@click.option("--json-output", type=click.Path(path_type=Path), default=None)
+@click.option("--report", type=click.Path(path_type=Path), default=None)
+@min_severity_option
+def scan_staged_cmd(json_output: Optional[Path], report: Optional[Path], min_severity: str) -> None:
+    findings = scan_staged_files()
+    findings = _apply_min_severity(findings, min_severity)
+    _emit_results(findings, str(json_output) if json_output else None, str(report) if report else None)
 
 
-for _scan_cmd in ("scan-path", "scan-staged", "scan-git"):
-    _patch_scan_command(_scan_cmd)
+@cli.command("scan-git")
+@click.option("--json-output", type=click.Path(path_type=Path), default=None)
+@click.option("--report", type=click.Path(path_type=Path), default=None)
+@min_severity_option
+def scan_git_cmd(json_output: Optional[Path], report: Optional[Path], min_severity: str) -> None:
+    findings = scan_git_history()
+    findings = _apply_min_severity(findings, min_severity)
+    _emit_results(findings, str(json_output) if json_output else None, str(report) if report else None)
 
 
 if __name__ == "__main__":
