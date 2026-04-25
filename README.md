@@ -26,4 +26,4 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
 - **VS Code extension scaffold** — a local editor integration runs `scan-file --json-output` and turns findings into inline diagnostics
 - **Baseline comparison mode** — pass `--baseline previous.json` to
-- **Output safety guardrail** — pass `--fail-on-unmasked` to `scan-path`, `scan-staged`, or `scan-git` to force a non-zero exit if serialized findings/log payload appears to contain raw (unredacted) secret material
+- **CI-safe machine output redaction** — pass `--redact-secrets` with `--json-output` or `--jsonl-output` to mask matched secret values using deterministic partial reveal + hash suffix
