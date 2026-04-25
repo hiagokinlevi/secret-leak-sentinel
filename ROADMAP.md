@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--jsonl-output` for streaming findings in CI (cycle 33)
+- [x] Add `--output-file` support to `scan-staged` and `scan-git` commands (cycle 34)
