@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--exclude-rule-id` CLI flag to suppress specific detector rules at runtime (cycle 35)
+- [x] Add `--min-severity` filter to scan commands (cycle 36)
