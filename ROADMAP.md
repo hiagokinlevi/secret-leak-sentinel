@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--min-severity` filter to scan commands (cycle 36)
+- [x] Add `--redact-secrets` flag to mask sensitive match values in JSON/JSONL exports (cycle 37)
