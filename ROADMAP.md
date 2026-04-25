@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--output-file` support to `scan-staged` and `scan-git` commands (cycle 34)
+- [x] Add `--exclude-rule-id` CLI flag to suppress specific detector rules at runtime (cycle 35)
