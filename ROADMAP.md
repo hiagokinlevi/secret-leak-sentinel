@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--allowed-extension` include filter to path scanning (cycle 38)
+- [x] Add `--no-default-excludes` flag to path and git scans (cycle 39)
