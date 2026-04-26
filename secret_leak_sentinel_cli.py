@@ -3,46 +3,53 @@ from pathlib import Path
 
 import click
 
-from scanners.filesystem_scanner import scan_path as scan_filesystem_path
+from scanners.filesystem_scanner import scan_path
+from scanners.git_scanner import scan_git
 
 
 @click.group()
 def cli():
     """secret-leak-sentinel CLI."""
-    pass
 
 
 @cli.command("scan-path")
-@click.argument("target_path", type=click.Path(exists=True, path_type=Path))
-@click.option("--policy", "policy_path", type=click.Path(exists=True, path_type=Path), default=None, help="Optional policy file path.")
-@click.option("--exclude", "exclude_patterns", multiple=True, help="Repeatable glob/path exclude pattern.")
-@click.option(
-    "--allowed-extension",
-    "allowed_extensions",
-    multiple=True,
-    help="Repeatable file extension include filter (e.g. --allowed-extension .py --allowed-extension .yaml). Applied after excludes.",
-)
-@click.option("--json-output", "json_output", is_flag=True, default=False, help="Emit JSON findings.")
-def scan_path_command(target_path: Path, policy_path: Path | None, exclude_patterns: tuple[str, ...], allowed_extensions: tuple[str, ...], json_output: bool):
-    """Scan a filesystem path for potential secrets."""
-    normalized_extensions = None
-    if allowed_extensions:
-        normalized_extensions = tuple(
-            ext if ext.startswith(".") else f".{ext}"
-            for ext in allowed_extensions
-        )
-
-    findings = scan_filesystem_path(
-        target_path=target_path,
-        policy_path=policy_path,
-        exclude_patterns=list(exclude_patterns),
-        allowed_extensions=list(normalized_extensions) if normalized_extensions else None,
+@click.argument("target_path", type=click.Path(path_type=Path, exists=True))
+@click.option("--exclude", "excludes", multiple=True, help="Additional paths/patterns to exclude.")
+@click.option("--no-default-excludes", is_flag=True, default=False, help="Disable built-in default exclusion paths.")
+@click.option("--json-output", type=click.Path(path_type=Path), default=None, help="Write findings JSON to file.")
+def scan_path_cmd(target_path: Path, excludes: tuple[str, ...], no_default_excludes: bool, json_output: Path | None):
+    findings = scan_path(
+        target_path,
+        excludes=list(excludes),
+        use_default_excludes=not no_default_excludes,
     )
 
     if json_output:
-        click.echo(json.dumps(findings, indent=2))
+        json_output.write_text(json.dumps(findings, indent=2), encoding="utf-8")
+        click.echo(f"Wrote findings to {json_output}")
     else:
-        click.echo(f"Findings: {len(findings)}")
+        click.echo(json.dumps(findings, indent=2))
+
+
+@cli.command("scan-git")
+@click.option("--repo", "repo_path", type=click.Path(path_type=Path, exists=True), default=Path("."), show_default=True)
+@click.option("--include-history", is_flag=True, default=False, help="Scan full git history.")
+@click.option("--exclude", "excludes", multiple=True, help="Additional paths/patterns to exclude.")
+@click.option("--no-default-excludes", is_flag=True, default=False, help="Disable built-in default exclusion paths.")
+@click.option("--json-output", type=click.Path(path_type=Path), default=None, help="Write findings JSON to file.")
+def scan_git_cmd(repo_path: Path, include_history: bool, excludes: tuple[str, ...], no_default_excludes: bool, json_output: Path | None):
+    findings = scan_git(
+        repo_path,
+        include_history=include_history,
+        excludes=list(excludes),
+        use_default_excludes=not no_default_excludes,
+    )
+
+    if json_output:
+        json_output.write_text(json.dumps(findings, indent=2), encoding="utf-8")
+        click.echo(f"Wrote findings to {json_output}")
+    else:
+        click.echo(json.dumps(findings, indent=2))
 
 
 if __name__ == "__main__":
