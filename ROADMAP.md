@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--no-default-excludes` flag to path and git scans (cycle 39)
+- [x] Add `--summary-only` flag for concise CI console output (cycle 40)
