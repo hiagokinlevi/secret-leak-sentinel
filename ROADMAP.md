@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--summary-only` flag for concise CI console output (cycle 40)
+- [x] Add `.env` and dotenv assignment detector rule (cycle 41)
