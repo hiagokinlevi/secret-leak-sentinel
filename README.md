@@ -26,4 +26,17 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
 - **VS Code extension scaffold** — a local editor integration runs `scan-file --json-output` and turns findings into inline diagnostics
 - **Baseline comparison mode** — pass `--baseline previous.json` to
-- **CI-safe machine output redaction** — pass `--redact-secrets` with `--json-output` or `--jsonl-output` to mask matched secret values using deterministic partial reveal + hash suffix
+
+---
+
+## CI-focused concise output
+
+Use `--summary-only` on scan commands to suppress per-finding console lines while keeping configured report files intact:
+
+```bash
+secret-leak-sentinel scan-path . \
+  --summary-only \
+  --json-output reports/findings.json
+```
+
+This prints only aggregate counts (total + severity breakdown) and exit status to CI logs.
