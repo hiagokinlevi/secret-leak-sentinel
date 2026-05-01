@@ -29,14 +29,7 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 
 ---
 
-## CI-focused concise output
+## CI hardening note
 
-Use `--summary-only` on scan commands to suppress per-finding console lines while keeping configured report files intact:
-
-```bash
-secret-leak-sentinel scan-path . \
-  --summary-only \
-  --json-output reports/findings.json
-```
-
-This prints only aggregate counts (total + severity breakdown) and exit status to CI logs.
+For production CI, use `--strict-policy` with scan commands when passing `--policy`.
+In strict mode, the command exits non-zero if the policy file is missing, cannot be parsed, or fails validation (instead of falling back to defaults).
