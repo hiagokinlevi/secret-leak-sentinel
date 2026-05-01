@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `.env` and dotenv assignment detector rule (cycle 41)
+- [x] Add `--strict-policy` flag to fail when policy file is missing/invalid (cycle 42)
