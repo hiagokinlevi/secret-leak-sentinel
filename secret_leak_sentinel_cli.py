@@ -1,118 +1,66 @@
-from __future__ import annotations
-
 import json
-import sys
+import os
 from pathlib import Path
-from typing import Optional
 
 import click
 
-from cli.app import cli
-from cli.commands.scan_git import scan_git as _scan_git
-from cli.commands.scan_path import scan_path as _scan_path
-from cli.commands.scan_staged import scan_staged as _scan_staged
+from scanners.git_scanner import GitScanner
+from scanners.path_scanner import PathScanner
+from reports.markdown_report import MarkdownReportGenerator
 
 
-_SEVERITY_ORDER = {
-    "low": 1,
-    "medium": 2,
-    "high": 3,
-    "critical": 4,
-}
+@click.group()
+def cli() -> None:
+    """secret-leak-sentinel CLI."""
+    pass
 
 
-def _finding_severity(finding: dict) -> str:
-    sev = (
-        finding.get("severity")
-        or finding.get("classification", {}).get("severity")
-        or "low"
-    )
-    return str(sev).lower()
-
-
-def _should_fail(findings: list[dict], threshold: Optional[str]) -> bool:
-    if not threshold:
-        return False
-    t = _SEVERITY_ORDER[threshold]
-    for f in findings:
-        if _SEVERITY_ORDER.get(_finding_severity(f), 0) >= t:
-            return True
-    return False
-
-
-def _extract_findings(result) -> list[dict]:
-    if result is None:
-        return []
-    if isinstance(result, list):
-        return result
-    if isinstance(result, dict):
-        if isinstance(result.get("findings"), list):
-            return result["findings"]
-    return []
-
-
-def _gate_and_exit(result, fail_on_severity: Optional[str]):
-    findings = _extract_findings(result)
-    if _should_fail(findings, fail_on_severity):
-        click.echo(
-            f"Failing due to finding(s) at or above severity '{fail_on_severity}'.",
-            err=True,
-        )
-        raise SystemExit(2)
-
-
-@click.group(invoke_without_command=True)
-@click.pass_context
-def main(ctx):
-    if ctx.invoked_subcommand is None:
-        cli.main(args=["--help"], standalone_mode=False)
-
-
-@main.command("scan-path")
-@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@cli.command("scan-git")
+@click.option("--repo", "repo_path", default=".", show_default=True, help="Path to git repository")
+@click.option("--deep-history", is_flag=True, help="Scan full git history (all commits)")
 @click.option(
-    "--fail-on-severity",
-    type=click.Choice(["low", "medium", "high", "critical"], case_sensitive=False),
+    "--history-max-commits",
+    type=click.IntRange(min=1),
     default=None,
-    help="Exit non-zero when findings at/above this severity exist.",
+    help="When used with --deep-history, only scan the most recent N commits",
 )
-@click.pass_context
-def scan_path_cmd(ctx, path: Path, fail_on_severity: Optional[str]):
-    result = _scan_path.main(
-        args=[str(path)],
-        standalone_mode=False,
-    )
-    _gate_and_exit(result, fail_on_severity.lower() if fail_on_severity else None)
+@click.option("--json-output", type=click.Path(), default=None, help="Write findings to JSON file")
+@click.option("--markdown-output", type=click.Path(), default=None, help="Write findings to Markdown report")
+def scan_git(
+    repo_path: str,
+    deep_history: bool,
+    history_max_commits: int | None,
+    json_output: str | None,
+    markdown_output: str | None,
+) -> None:
+    scanner = GitScanner(repo_path)
+
+    if deep_history:
+        findings = scanner.scan_history(max_commits=history_max_commits)
+    else:
+        findings = scanner.scan_working_tree()
+
+    if json_output:
+        out = Path(json_output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(findings, indent=2), encoding="utf-8")
+
+    if markdown_output:
+        out = Path(markdown_output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        report = MarkdownReportGenerator().generate(findings)
+        out.write_text(report, encoding="utf-8")
+
+    click.echo(json.dumps({"findings": len(findings)}))
 
 
-@main.command("scan-staged")
-@click.option(
-    "--fail-on-severity",
-    type=click.Choice(["low", "medium", "high", "critical"], case_sensitive=False),
-    default=None,
-    help="Exit non-zero when findings at/above this severity exist.",
-)
-@click.pass_context
-def scan_staged_cmd(ctx, fail_on_severity: Optional[str]):
-    result = _scan_staged.main(args=[], standalone_mode=False)
-    _gate_and_exit(result, fail_on_severity.lower() if fail_on_severity else None)
-
-
-@main.command("scan-git")
-@click.option(
-    "--fail-on-severity",
-    type=click.Choice(["low", "medium", "high", "critical"], case_sensitive=False),
-    default=None,
-    help="Exit non-zero when findings at/above this severity exist.",
-)
-@click.pass_context
-def scan_git_cmd(ctx, fail_on_severity: Optional[str]):
-    result = _scan_git.main(args=[], standalone_mode=False)
-    _gate_and_exit(result, fail_on_severity.lower() if fail_on_severity else None)
+@cli.command("scan-path")
+@click.option("--path", "target_path", default=".", show_default=True, help="Path to scan")
+def scan_path(target_path: str) -> None:
+    scanner = PathScanner(target_path)
+    findings = scanner.scan()
+    click.echo(json.dumps({"findings": len(findings)}))
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except SystemExit as exc:
-        raise
+    cli()
