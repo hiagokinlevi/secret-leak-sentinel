@@ -1,131 +1,118 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
-from typing import Any, Iterable
+import sys
+from pathlib import Path
+from typing import Optional
 
 import click
 
+from cli.app import cli
+from cli.commands.scan_git import scan_git as _scan_git
+from cli.commands.scan_path import scan_path as _scan_path
+from cli.commands.scan_staged import scan_staged as _scan_staged
 
-# NOTE:
-# This file intentionally keeps logic compact and self-contained for the roadmap task.
-# It assumes existing scanner plumbing returns finding dicts with optional severity fields.
+
+_SEVERITY_ORDER = {
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+    "critical": 4,
+}
 
 
-def _severity_of(finding: dict[str, Any]) -> str:
+def _finding_severity(finding: dict) -> str:
     sev = (
         finding.get("severity")
-        or finding.get("criticality")
-        or finding.get("level")
-        or "unknown"
+        or finding.get("classification", {}).get("severity")
+        or "low"
     )
     return str(sev).lower()
 
 
-def _print_summary(findings: Iterable[dict[str, Any]], exit_code: int) -> None:
-    findings_list = list(findings)
-    counts = Counter(_severity_of(f) for f in findings_list)
-
-    click.echo("Scan summary")
-    click.echo(f"Total findings: {len(findings_list)}")
-
-    # Stable display order for common severities, then any extras.
-    ordered = ["critical", "high", "medium", "low", "info", "unknown"]
-    for sev in ordered:
-        if sev in counts:
-            click.echo(f"{sev}: {counts[sev]}")
-    for sev in sorted(k for k in counts.keys() if k not in ordered):
-        click.echo(f"{sev}: {counts[sev]}")
-
-    click.echo(f"Exit status: {exit_code}")
+def _should_fail(findings: list[dict], threshold: Optional[str]) -> bool:
+    if not threshold:
+        return False
+    t = _SEVERITY_ORDER[threshold]
+    for f in findings:
+        if _SEVERITY_ORDER.get(_finding_severity(f), 0) >= t:
+            return True
+    return False
 
 
-def _render_console_findings(findings: list[dict[str, Any]], summary_only: bool) -> None:
-    if summary_only:
-        return
-    for finding in findings:
-        click.echo(json.dumps(finding, ensure_ascii=False))
+def _extract_findings(result) -> list[dict]:
+    if result is None:
+        return []
+    if isinstance(result, list):
+        return result
+    if isinstance(result, dict):
+        if isinstance(result.get("findings"), list):
+            return result["findings"]
+    return []
 
 
-@click.group()
-def cli() -> None:
-    """secret-leak-sentinel CLI."""
+def _gate_and_exit(result, fail_on_severity: Optional[str]):
+    findings = _extract_findings(result)
+    if _should_fail(findings, fail_on_severity):
+        click.echo(
+            f"Failing due to finding(s) at or above severity '{fail_on_severity}'.",
+            err=True,
+        )
+        raise SystemExit(2)
 
 
-# Shared option for scan commands
-_summary_only_option = click.option(
-    "--summary-only",
-    is_flag=True,
-    default=False,
-    help="Suppress per-finding console lines and print only aggregate summary counts.",
+@click.group(invoke_without_command=True)
+@click.pass_context
+def main(ctx):
+    if ctx.invoked_subcommand is None:
+        cli.main(args=["--help"], standalone_mode=False)
+
+
+@main.command("scan-path")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--fail-on-severity",
+    type=click.Choice(["low", "medium", "high", "critical"], case_sensitive=False),
+    default=None,
+    help="Exit non-zero when findings at/above this severity exist.",
 )
+@click.pass_context
+def scan_path_cmd(ctx, path: Path, fail_on_severity: Optional[str]):
+    result = _scan_path.main(
+        args=[str(path)],
+        standalone_mode=False,
+    )
+    _gate_and_exit(result, fail_on_severity.lower() if fail_on_severity else None)
 
 
-@cli.command("scan-path")
-@click.argument("path", type=click.Path(exists=True))
-@click.option("--json-output", type=click.Path(), default=None)
-@click.option("--jsonl-output", type=click.Path(), default=None)
-@_summary_only_option
-def scan_path(path: str, json_output: str | None, jsonl_output: str | None, summary_only: bool) -> None:
-    # Placeholder for existing scanner integration; expected to be replaced by current project logic.
-    findings: list[dict[str, Any]] = []
-
-    # Existing behavior: file outputs remain unaffected by --summary-only.
-    if json_output:
-        with open(json_output, "w", encoding="utf-8") as fh:
-            json.dump(findings, fh, indent=2)
-    if jsonl_output:
-        with open(jsonl_output, "w", encoding="utf-8") as fh:
-            for f in findings:
-                fh.write(json.dumps(f, ensure_ascii=False) + "\n")
-
-    _render_console_findings(findings, summary_only=summary_only)
-    exit_code = 1 if findings else 0
-    _print_summary(findings, exit_code=exit_code)
-    raise SystemExit(exit_code)
+@main.command("scan-staged")
+@click.option(
+    "--fail-on-severity",
+    type=click.Choice(["low", "medium", "high", "critical"], case_sensitive=False),
+    default=None,
+    help="Exit non-zero when findings at/above this severity exist.",
+)
+@click.pass_context
+def scan_staged_cmd(ctx, fail_on_severity: Optional[str]):
+    result = _scan_staged.main(args=[], standalone_mode=False)
+    _gate_and_exit(result, fail_on_severity.lower() if fail_on_severity else None)
 
 
-@cli.command("scan-staged")
-@click.option("--json-output", type=click.Path(), default=None)
-@click.option("--jsonl-output", type=click.Path(), default=None)
-@_summary_only_option
-def scan_staged(json_output: str | None, jsonl_output: str | None, summary_only: bool) -> None:
-    findings: list[dict[str, Any]] = []
-
-    if json_output:
-        with open(json_output, "w", encoding="utf-8") as fh:
-            json.dump(findings, fh, indent=2)
-    if jsonl_output:
-        with open(jsonl_output, "w", encoding="utf-8") as fh:
-            for f in findings:
-                fh.write(json.dumps(f, ensure_ascii=False) + "\n")
-
-    _render_console_findings(findings, summary_only=summary_only)
-    exit_code = 1 if findings else 0
-    _print_summary(findings, exit_code=exit_code)
-    raise SystemExit(exit_code)
-
-
-@cli.command("scan-git")
-@click.option("--json-output", type=click.Path(), default=None)
-@click.option("--jsonl-output", type=click.Path(), default=None)
-@_summary_only_option
-def scan_git(json_output: str | None, jsonl_output: str | None, summary_only: bool) -> None:
-    findings: list[dict[str, Any]] = []
-
-    if json_output:
-        with open(json_output, "w", encoding="utf-8") as fh:
-            json.dump(findings, fh, indent=2)
-    if jsonl_output:
-        with open(jsonl_output, "w", encoding="utf-8") as fh:
-            for f in findings:
-                fh.write(json.dumps(f, ensure_ascii=False) + "\n")
-
-    _render_console_findings(findings, summary_only=summary_only)
-    exit_code = 1 if findings else 0
-    _print_summary(findings, exit_code=exit_code)
-    raise SystemExit(exit_code)
+@main.command("scan-git")
+@click.option(
+    "--fail-on-severity",
+    type=click.Choice(["low", "medium", "high", "critical"], case_sensitive=False),
+    default=None,
+    help="Exit non-zero when findings at/above this severity exist.",
+)
+@click.pass_context
+def scan_git_cmd(ctx, fail_on_severity: Optional[str]):
+    result = _scan_git.main(args=[], standalone_mode=False)
+    _gate_and_exit(result, fail_on_severity.lower() if fail_on_severity else None)
 
 
 if __name__ == "__main__":
-    cli()
+    try:
+        main()
+    except SystemExit as exc:
+        raise
