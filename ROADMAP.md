@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--history-max-commits` limit to `scan-git` (cycle 44)
+- [x] Add `--exit-code-on-findings` flag for deterministic CI gating (cycle 45)
