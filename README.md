@@ -29,7 +29,12 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 
 ---
 
-## CI hardening note
+## CI severity gate example
 
-For production CI, use `--strict-policy` with scan commands when passing `--policy`.
-In strict mode, the command exits non-zero if the policy file is missing, cannot be parsed, or fails validation (instead of falling back to defaults).
+To fail CI only for high-impact leaks while keeping reports for all findings, use `--fail-on-severity`:
+
+```bash
+secret-leak-sentinel scan-path . --fail-on-severity high
+```
+
+Supported thresholds: `low`, `medium`, `high`, `critical`.
