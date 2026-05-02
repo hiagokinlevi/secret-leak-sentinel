@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--fail-on-severity` exit gate for CI enforcement (cycle 43)
+- [x] Add `--history-max-commits` limit to `scan-git` (cycle 44)
