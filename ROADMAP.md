@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--strict-policy` flag to fail when policy file is missing/invalid (cycle 42)
+- [x] Add `--fail-on-severity` exit gate for CI enforcement (cycle 43)
