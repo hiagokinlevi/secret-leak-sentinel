@@ -29,12 +29,10 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 
 ---
 
-## CI severity gate example
+## CI fail-on-any-secret mode
 
-To fail CI only for high-impact leaks while keeping reports for all findings, use `--fail-on-severity`:
+For production CI pipelines that must fail whenever any secret is detected (without configuring severity thresholds), use:
 
-```bash
-secret-leak-sentinel scan-path . --fail-on-severity high
-```
+- `--exit-code-on-findings` on `scan-path`, `scan-staged`, or `scan-git`
 
-Supported thresholds: `low`, `medium`, `high`, `critical`.
+This returns exit code `1` when at least one finding is produced; when unset, existing exit behavior is unchanged.
