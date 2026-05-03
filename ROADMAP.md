@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--include-hidden` flag to `scan-path` to optionally scan dotfiles/directories (cycle 48)
+- [x] Add `--from-stdin` support to `scan-path` for piped content scanning (cycle 49)
