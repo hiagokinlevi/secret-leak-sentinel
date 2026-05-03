@@ -1,76 +1,56 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Optional
 
 import click
 
-from policies.loader import PolicyLoadError, load_policy
-from scanners.engine import run_scan_path, run_scan_staged, run_scan_git
-
-
-def _resolve_policy(policy_path: Optional[str], strict_policy: bool):
-    """Load policy with optional strict error behavior.
-
-    When strict_policy is False, policy load failures are downgraded to warning
-    and scanner falls back to default policy behavior.
-    When strict_policy is True, any policy load issue exits non-zero.
-    """
-    if not policy_path:
-        return None
-
-    try:
-        return load_policy(policy_path)
-    except (PolicyLoadError, FileNotFoundError, ValueError) as exc:
-        if strict_policy:
-            raise click.ClickException(
-                f"Strict policy mode enabled: failed to load policy '{policy_path}': {exc}"
-            )
-        click.echo(
-            f"[warn] Could not load policy '{policy_path}' ({exc}). Falling back to default policy.",
-            err=True,
-        )
-        return None
+from scanners.filesystem_scanner import FilesystemScanner
 
 
 @click.group()
-def cli():
-    pass
+def cli() -> None:
+    """secret-leak-sentinel CLI."""
 
 
 @cli.command("scan-path")
-@click.argument("path", type=click.Path(exists=True, path_type=Path))
-@click.option("--policy", "policy_path", type=click.Path(path_type=Path), default=None, help="Path to YAML policy file.")
-@click.option("--strict-policy", is_flag=True, default=False, help="Fail if --policy is missing, invalid, or fails schema validation.")
-@click.option("--json-output", type=click.Path(path_type=Path), default=None)
-def scan_path(path: Path, policy_path: Optional[Path], strict_policy: bool, json_output: Optional[Path]):
-    policy = _resolve_policy(str(policy_path) if policy_path else None, strict_policy)
-    result = run_scan_path(path=path, policy=policy)
+@click.argument("target_path", required=False, type=click.Path(path_type=Path))
+@click.option("--json-output", "json_output", type=click.Path(path_type=Path), default=None)
+@click.option("--from-stdin", "from_stdin", is_flag=True, default=False, help="Read raw content from stdin and scan as a virtual file.")
+@click.option("--stdin-filename", "stdin_filename", default="<stdin>", show_default=True, help="Virtual filename used when scanning stdin content.")
+def scan_path(
+    target_path: Optional[Path],
+    json_output: Optional[Path],
+    from_stdin: bool,
+    stdin_filename: str,
+) -> None:
+    """Scan a filesystem path (or stdin content) for secrets."""
+    scanner = FilesystemScanner()
+
+    if from_stdin:
+        raw = sys.stdin.read()
+        findings = scanner.scan_text(raw, source_name=stdin_filename)
+    else:
+        if target_path is None:
+            raise click.UsageError("TARGET_PATH is required unless --from-stdin is provided")
+        findings = scanner.scan_path(target_path)
+
+    payload = {
+        "findings": [f.to_dict() for f in findings],
+        "summary": {
+            "total_findings": len(findings),
+        },
+    }
+
     if json_output:
-        json_output.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    click.echo(json.dumps(result, indent=2))
+        json_output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    else:
+        click.echo(json.dumps(payload, indent=2))
+
+    raise SystemExit(1 if findings else 0)
 
 
-@cli.command("scan-staged")
-@click.option("--policy", "policy_path", type=click.Path(path_type=Path), default=None, help="Path to YAML policy file.")
-@click.option("--strict-policy", is_flag=True, default=False, help="Fail if --policy is missing, invalid, or fails schema validation.")
-@click.option("--json-output", type=click.Path(path_type=Path), default=None)
-def scan_staged(policy_path: Optional[Path], strict_policy: bool, json_output: Optional[Path]):
-    policy = _resolve_policy(str(policy_path) if policy_path else None, strict_policy)
-    result = run_scan_staged(policy=policy)
-    if json_output:
-        json_output.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    click.echo(json.dumps(result, indent=2))
-
-
-@cli.command("scan-git")
-@click.option("--policy", "policy_path", type=click.Path(path_type=Path), default=None, help="Path to YAML policy file.")
-@click.option("--strict-policy", is_flag=True, default=False, help="Fail if --policy is missing, invalid, or fails schema validation.")
-@click.option("--json-output", type=click.Path(path_type=Path), default=None)
-def scan_git(policy_path: Optional[Path], strict_policy: bool, json_output: Optional[Path]):
-    policy = _resolve_policy(str(policy_path) if policy_path else None, strict_policy)
-    result = run_scan_git(policy=policy)
-    if json_output:
-        json_output.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    click.echo(json.dumps(result, indent=2))
+if __name__ == "__main__":
+    cli()
