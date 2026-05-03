@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--output-format sarif` support for `generate-report` (cycle 47)
+- [x] Add `--include-hidden` flag to `scan-path` to optionally scan dotfiles/directories (cycle 48)
