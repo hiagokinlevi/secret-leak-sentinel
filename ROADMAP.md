@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--from-stdin` support to `scan-path` for piped content scanning (cycle 49)
+- [x] Add `--redact-findings` flag to mask secret values in JSON/Markdown reports (cycle 50)
