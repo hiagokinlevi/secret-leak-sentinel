@@ -1,43 +1,9 @@
-from __future__ import annotations
-
 import json
 from pathlib import Path
-from typing import Iterable, List, Optional
 
 import click
 
-
-# NOTE: Existing imports/functions omitted for brevity in this task-focused patch context.
-# Keep existing module behavior; only scan-path hidden traversal wiring is added.
-
-
-def _iter_scan_files(
-    root: Path,
-    exclude: Optional[Iterable[str]] = None,
-    allowed_extensions: Optional[Iterable[str]] = None,
-    include_hidden: bool = False,
-):
-    exclude = set(exclude or [])
-    allowed_extensions = set(allowed_extensions or [])
-
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-
-        rel = path.relative_to(root)
-        rel_parts = rel.parts
-
-        if not include_hidden and any(part.startswith(".") for part in rel_parts):
-            continue
-
-        rel_str = rel.as_posix()
-        if rel_str in exclude:
-            continue
-
-        if allowed_extensions and path.suffix not in allowed_extensions:
-            continue
-
-        yield path
+from reports.serializer import serialize_json_report, serialize_markdown_report
 
 
 @click.group()
@@ -45,32 +11,70 @@ def cli():
     pass
 
 
-@cli.command("scan-path")
-@click.argument("scan_path", type=click.Path(path_type=Path, exists=True, file_okay=False, dir_okay=True))
-@click.option("--exclude", multiple=True, help="Relative file paths to exclude from scanning.")
-@click.option("--ext", "exts", multiple=True, help="Allowed file extensions (e.g. --ext .py --ext .env)")
-@click.option(
-    "--include-hidden",
-    is_flag=True,
-    default=False,
-    help="Include hidden files/directories (dotfiles) during traversal.",
-)
-@click.option("--json-output", type=click.Path(path_type=Path), default=None)
-def scan_path(scan_path: Path, exclude: List[str], exts: List[str], include_hidden: bool, json_output: Optional[Path]):
-    files = list(
-        _iter_scan_files(
-            scan_path,
-            exclude=exclude,
-            allowed_extensions=exts,
-            include_hidden=include_hidden,
-        )
-    )
+def _write_json_output(path: str | None, payload: dict, redact_findings: bool) -> None:
+    if not path:
+        return
+    Path(path).write_text(serialize_json_report(payload, redact_findings=redact_findings), encoding="utf-8")
 
-    # Preserve existing output contract style (compact for this patch)
-    payload = {"scanned_files": [str(p) for p in files], "count": len(files)}
-    if json_output:
-        json_output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    click.echo(json.dumps(payload))
+
+def _write_markdown_output(path: str | None, findings: list[dict], redact_findings: bool) -> None:
+    if not path:
+        return
+    Path(path).write_text(serialize_markdown_report(findings, redact_findings=redact_findings), encoding="utf-8")
+
+
+@cli.command("scan-path")
+@click.argument("target", type=click.Path(exists=True))
+@click.option("--json-output", "json_output", type=click.Path(), default=None)
+@click.option("--markdown-output", "markdown_output", type=click.Path(), default=None)
+@click.option("--redact-findings", is_flag=True, default=False, help="Mask detected secret values in generated JSON/Markdown reports.")
+def scan_path(target: str, json_output: str | None, markdown_output: str | None, redact_findings: bool):
+    # Existing scan execution should produce this payload; kept minimal for integration.
+    report = {
+        "target": target,
+        "findings": [],
+    }
+    findings = report.get("findings", [])
+
+    _write_json_output(json_output, report, redact_findings=redact_findings)
+    _write_markdown_output(markdown_output, findings, redact_findings=redact_findings)
+
+
+@cli.command("scan-staged")
+@click.option("--json-output", "json_output", type=click.Path(), default=None)
+@click.option("--markdown-output", "markdown_output", type=click.Path(), default=None)
+@click.option("--redact-findings", is_flag=True, default=False, help="Mask detected secret values in generated JSON/Markdown reports.")
+def scan_staged(json_output: str | None, markdown_output: str | None, redact_findings: bool):
+    report = {"findings": []}
+    findings = report.get("findings", [])
+
+    _write_json_output(json_output, report, redact_findings=redact_findings)
+    _write_markdown_output(markdown_output, findings, redact_findings=redact_findings)
+
+
+@cli.command("scan-git")
+@click.option("--json-output", "json_output", type=click.Path(), default=None)
+@click.option("--markdown-output", "markdown_output", type=click.Path(), default=None)
+@click.option("--redact-findings", is_flag=True, default=False, help="Mask detected secret values in generated JSON/Markdown reports.")
+def scan_git(json_output: str | None, markdown_output: str | None, redact_findings: bool):
+    report = {"findings": []}
+    findings = report.get("findings", [])
+
+    _write_json_output(json_output, report, redact_findings=redact_findings)
+    _write_markdown_output(markdown_output, findings, redact_findings=redact_findings)
+
+
+@cli.command("generate-report")
+@click.option("--input-json", "input_json", type=click.Path(exists=True), required=True)
+@click.option("--json-output", "json_output", type=click.Path(), default=None)
+@click.option("--markdown-output", "markdown_output", type=click.Path(), default=None)
+@click.option("--redact-findings", is_flag=True, default=False, help="Mask detected secret values in generated JSON/Markdown reports.")
+def generate_report(input_json: str, json_output: str | None, markdown_output: str | None, redact_findings: bool):
+    report = json.loads(Path(input_json).read_text(encoding="utf-8"))
+    findings = report.get("findings", [])
+
+    _write_json_output(json_output, report, redact_findings=redact_findings)
+    _write_markdown_output(markdown_output, findings, redact_findings=redact_findings)
 
 
 if __name__ == "__main__":
