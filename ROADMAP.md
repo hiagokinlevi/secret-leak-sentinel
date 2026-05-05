@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--redact-findings` flag to mask secret values in JSON/Markdown reports (cycle 50)
+- [x] Add `--max-file-bytes` guardrail to `scan-path` and `scan-git` (cycle 52)
