@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--max-file-bytes` guardrail to `scan-path` and `scan-git` (cycle 52)
+- [x] Add `--fail-on-detector` flag for detector-specific CI blocking (cycle 53)
