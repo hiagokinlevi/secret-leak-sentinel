@@ -1,129 +1,113 @@
+from __future__ import annotations
+
 import json
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Iterable
 
 import click
 
-from scanners.filesystem_scanner import FilesystemScanner
-from scanners.git_scanner import GitScanner
+from cli.app import app as _app
 
 
-def _fmt_bytes(num: int) -> str:
-    units = ["B", "KB", "MB", "GB", "TB"]
-    size = float(num)
-    for unit in units:
-        if size < 1024.0 or unit == units[-1]:
-            if unit == "B":
-                return f"{int(size)} {unit}"
-            return f"{size:.2f} {unit}"
-        size /= 1024.0
-    return f"{num} B"
+# NOTE:
+# This thin wrapper exists so local invocation via `python secret_leak_sentinel_cli.py`
+# works. We extend the underlying Click app in-place with a small compatibility layer
+# for `--fail-on-detector` without changing core detection logic.
 
 
-def _scan_files_with_limit(
-    scanner: FilesystemScanner,
-    file_paths: List[Path],
-    max_file_bytes: Optional[int],
-) -> Tuple[List[Dict[str, Any]], int, Dict[str, int]]:
-    findings: List[Dict[str, Any]] = []
-    skipped = 0
-    skipped_reasons = {"max_file_bytes": 0}
-
-    for path in file_paths:
-        if max_file_bytes is not None:
-            try:
-                size = path.stat().st_size
-            except OSError:
-                size = None
-            if size is not None and size > max_file_bytes:
-                skipped += 1
-                skipped_reasons["max_file_bytes"] += 1
-                continue
-
-        findings.extend(scanner.scan_file(path))
-
-    return findings, skipped, skipped_reasons
+def _parse_detector_filters(values: tuple[str, ...]) -> set[str]:
+    parsed: set[str] = set()
+    for raw in values:
+        for part in raw.split(","):
+            token = part.strip()
+            if token:
+                parsed.add(token)
+    return parsed
 
 
-def _scan_git_with_limit(
-    scanner: GitScanner,
-    repo_path: str,
-    max_file_bytes: Optional[int],
-) -> Tuple[List[Dict[str, Any]], int, Dict[str, int]]:
-    findings: List[Dict[str, Any]] = []
-    skipped = 0
-    skipped_reasons = {"max_file_bytes": 0}
-
-    for file_obj in scanner.iter_repository_files(repo_path):
-        if max_file_bytes is not None:
-            size = file_obj.get("size")
-            if isinstance(size, int) and size > max_file_bytes:
-                skipped += 1
-                skipped_reasons["max_file_bytes"] += 1
-                continue
-
-        findings.extend(scanner.scan_repository_file(file_obj))
-
-    return findings, skipped, skipped_reasons
+def _finding_detector_id(finding: dict) -> str | None:
+    return finding.get("detector") or finding.get("rule_id")
 
 
-@click.group()
-def cli() -> None:
-    pass
+def _load_findings_from_json_output(path_value: str | None) -> list[dict]:
+    if not path_value:
+        return []
+    p = Path(path_value)
+    if not p.exists():
+        return []
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+    if isinstance(data, list):
+        return [x for x in data if isinstance(x, dict)]
+    if isinstance(data, dict):
+        findings = data.get("findings")
+        if isinstance(findings, list):
+            return [x for x in findings if isinstance(x, dict)]
+    return []
 
 
-@cli.command("scan-path")
-@click.argument("path", type=click.Path(exists=True, file_okay=False, dir_okay=True))
-@click.option("--json-output", type=click.Path(), default=None, help="Write findings JSON to file.")
-@click.option(
-    "--max-file-bytes",
-    type=click.IntRange(min=1),
-    default=None,
-    help="Skip files larger than this byte threshold (default: no limit).",
-)
-def scan_path(path: str, json_output: Optional[str], max_file_bytes: Optional[int]) -> None:
-    scanner = FilesystemScanner()
-    file_paths = scanner.collect_files(path)
-    findings, skipped_count, skipped_reasons = _scan_files_with_limit(scanner, file_paths, max_file_bytes)
-
-    if json_output:
-        with open(json_output, "w", encoding="utf-8") as f:
-            json.dump(findings, f, indent=2)
-
-    click.echo(f"Scanned files: {len(file_paths) - skipped_count}/{len(file_paths)}")
-    if max_file_bytes is not None:
-        click.echo(
-            f"Skipped files: {skipped_count} (reason: exceeds --max-file-bytes={max_file_bytes} / {_fmt_bytes(max_file_bytes)})"
-        )
-    click.echo(f"Findings: {len(findings)}")
+def _has_detector_match(findings: Iterable[dict], filters: set[str]) -> bool:
+    if not filters:
+        return False
+    for f in findings:
+        det = _finding_detector_id(f)
+        if det and det in filters:
+            return True
+    return False
 
 
-@cli.command("scan-git")
-@click.argument("repo_path", type=click.Path(exists=True, file_okay=False, dir_okay=True), default=".")
-@click.option("--json-output", type=click.Path(), default=None, help="Write findings JSON to file.")
-@click.option(
-    "--max-file-bytes",
-    type=click.IntRange(min=1),
-    default=None,
-    help="Skip repository files larger than this byte threshold (default: no limit).",
-)
-def scan_git(repo_path: str, json_output: Optional[str], max_file_bytes: Optional[int]) -> None:
-    scanner = GitScanner()
-    findings, skipped_count, skipped_reasons = _scan_git_with_limit(scanner, repo_path, max_file_bytes)
+def _patch_command_with_fail_on_detector(command_name: str) -> None:
+    cmd = _app.commands.get(command_name)
+    if cmd is None:
+        return
 
-    if json_output:
-        with open(json_output, "w", encoding="utf-8") as f:
-            json.dump(findings, f, indent=2)
+    # Prevent duplicate patching.
+    if any(getattr(p, "name", None) == "fail_on_detector" for p in cmd.params):
+        return
 
-    total = len(findings) + skipped_count
-    click.echo(f"Processed repo files: {total - skipped_count}/{total}")
-    if max_file_bytes is not None:
-        click.echo(
-            f"Skipped files: {skipped_count} (reason: exceeds --max-file-bytes={max_file_bytes} / {_fmt_bytes(max_file_bytes)})"
-        )
-    click.echo(f"Findings: {len(findings)}")
+    option = click.Option(
+        ["--fail-on-detector"],
+        multiple=True,
+        help=(
+            "Detector ID(s) that should cause a non-zero exit when present in findings. "
+            "Can be repeated or provided as a comma-separated list."
+        ),
+    )
+    cmd.params.append(option)
+
+    original_callback = cmd.callback
+
+    def wrapped_callback(*args, **kwargs):
+        fail_on_detector_values = kwargs.pop("fail_on_detector", ()) or ()
+        detector_filters = _parse_detector_filters(tuple(fail_on_detector_values))
+
+        try:
+            result = original_callback(*args, **kwargs)
+        except SystemExit as e:
+            # If command already failed for other reasons, preserve behavior.
+            if e.code not in (0, None):
+                raise
+            result = None
+
+        if detector_filters:
+            findings = _load_findings_from_json_output(kwargs.get("json_output"))
+            if _has_detector_match(findings, detector_filters):
+                raise click.ClickException(
+                    "Findings matched --fail-on-detector filters: "
+                    + ", ".join(sorted(detector_filters))
+                )
+
+        return result
+
+    cmd.callback = wrapped_callback
+
+
+for _name in ("scan-path", "scan-staged", "scan-git"):
+    _patch_command_with_fail_on_detector(_name)
 
 
 if __name__ == "__main__":
-    cli()
+    _app()
