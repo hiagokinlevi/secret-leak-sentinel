@@ -1,80 +1,128 @@
 import json
+import os
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import click
 
-from reports.serializer import serialize_json_report, serialize_markdown_report
+from scanners.filesystem_scanner import FilesystemScanner
+from scanners.git_scanner import GitScanner
+
+
+def _fmt_bytes(num: int) -> str:
+    units = ["B", "KB", "MB", "GB", "TB"]
+    size = float(num)
+    for unit in units:
+        if size < 1024.0 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(size)} {unit}"
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
+    return f"{num} B"
+
+
+def _scan_files_with_limit(
+    scanner: FilesystemScanner,
+    file_paths: List[Path],
+    max_file_bytes: Optional[int],
+) -> Tuple[List[Dict[str, Any]], int, Dict[str, int]]:
+    findings: List[Dict[str, Any]] = []
+    skipped = 0
+    skipped_reasons = {"max_file_bytes": 0}
+
+    for path in file_paths:
+        if max_file_bytes is not None:
+            try:
+                size = path.stat().st_size
+            except OSError:
+                size = None
+            if size is not None and size > max_file_bytes:
+                skipped += 1
+                skipped_reasons["max_file_bytes"] += 1
+                continue
+
+        findings.extend(scanner.scan_file(path))
+
+    return findings, skipped, skipped_reasons
+
+
+def _scan_git_with_limit(
+    scanner: GitScanner,
+    repo_path: str,
+    max_file_bytes: Optional[int],
+) -> Tuple[List[Dict[str, Any]], int, Dict[str, int]]:
+    findings: List[Dict[str, Any]] = []
+    skipped = 0
+    skipped_reasons = {"max_file_bytes": 0}
+
+    for file_obj in scanner.iter_repository_files(repo_path):
+        if max_file_bytes is not None:
+            size = file_obj.get("size")
+            if isinstance(size, int) and size > max_file_bytes:
+                skipped += 1
+                skipped_reasons["max_file_bytes"] += 1
+                continue
+
+        findings.extend(scanner.scan_repository_file(file_obj))
+
+    return findings, skipped, skipped_reasons
 
 
 @click.group()
-def cli():
+def cli() -> None:
     pass
 
 
-def _write_json_output(path: str | None, payload: dict, redact_findings: bool) -> None:
-    if not path:
-        return
-    Path(path).write_text(serialize_json_report(payload, redact_findings=redact_findings), encoding="utf-8")
-
-
-def _write_markdown_output(path: str | None, findings: list[dict], redact_findings: bool) -> None:
-    if not path:
-        return
-    Path(path).write_text(serialize_markdown_report(findings, redact_findings=redact_findings), encoding="utf-8")
-
-
 @cli.command("scan-path")
-@click.argument("target", type=click.Path(exists=True))
-@click.option("--json-output", "json_output", type=click.Path(), default=None)
-@click.option("--markdown-output", "markdown_output", type=click.Path(), default=None)
-@click.option("--redact-findings", is_flag=True, default=False, help="Mask detected secret values in generated JSON/Markdown reports.")
-def scan_path(target: str, json_output: str | None, markdown_output: str | None, redact_findings: bool):
-    # Existing scan execution should produce this payload; kept minimal for integration.
-    report = {
-        "target": target,
-        "findings": [],
-    }
-    findings = report.get("findings", [])
+@click.argument("path", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+@click.option("--json-output", type=click.Path(), default=None, help="Write findings JSON to file.")
+@click.option(
+    "--max-file-bytes",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Skip files larger than this byte threshold (default: no limit).",
+)
+def scan_path(path: str, json_output: Optional[str], max_file_bytes: Optional[int]) -> None:
+    scanner = FilesystemScanner()
+    file_paths = scanner.collect_files(path)
+    findings, skipped_count, skipped_reasons = _scan_files_with_limit(scanner, file_paths, max_file_bytes)
 
-    _write_json_output(json_output, report, redact_findings=redact_findings)
-    _write_markdown_output(markdown_output, findings, redact_findings=redact_findings)
+    if json_output:
+        with open(json_output, "w", encoding="utf-8") as f:
+            json.dump(findings, f, indent=2)
 
-
-@cli.command("scan-staged")
-@click.option("--json-output", "json_output", type=click.Path(), default=None)
-@click.option("--markdown-output", "markdown_output", type=click.Path(), default=None)
-@click.option("--redact-findings", is_flag=True, default=False, help="Mask detected secret values in generated JSON/Markdown reports.")
-def scan_staged(json_output: str | None, markdown_output: str | None, redact_findings: bool):
-    report = {"findings": []}
-    findings = report.get("findings", [])
-
-    _write_json_output(json_output, report, redact_findings=redact_findings)
-    _write_markdown_output(markdown_output, findings, redact_findings=redact_findings)
+    click.echo(f"Scanned files: {len(file_paths) - skipped_count}/{len(file_paths)}")
+    if max_file_bytes is not None:
+        click.echo(
+            f"Skipped files: {skipped_count} (reason: exceeds --max-file-bytes={max_file_bytes} / {_fmt_bytes(max_file_bytes)})"
+        )
+    click.echo(f"Findings: {len(findings)}")
 
 
 @cli.command("scan-git")
-@click.option("--json-output", "json_output", type=click.Path(), default=None)
-@click.option("--markdown-output", "markdown_output", type=click.Path(), default=None)
-@click.option("--redact-findings", is_flag=True, default=False, help="Mask detected secret values in generated JSON/Markdown reports.")
-def scan_git(json_output: str | None, markdown_output: str | None, redact_findings: bool):
-    report = {"findings": []}
-    findings = report.get("findings", [])
+@click.argument("repo_path", type=click.Path(exists=True, file_okay=False, dir_okay=True), default=".")
+@click.option("--json-output", type=click.Path(), default=None, help="Write findings JSON to file.")
+@click.option(
+    "--max-file-bytes",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Skip repository files larger than this byte threshold (default: no limit).",
+)
+def scan_git(repo_path: str, json_output: Optional[str], max_file_bytes: Optional[int]) -> None:
+    scanner = GitScanner()
+    findings, skipped_count, skipped_reasons = _scan_git_with_limit(scanner, repo_path, max_file_bytes)
 
-    _write_json_output(json_output, report, redact_findings=redact_findings)
-    _write_markdown_output(markdown_output, findings, redact_findings=redact_findings)
+    if json_output:
+        with open(json_output, "w", encoding="utf-8") as f:
+            json.dump(findings, f, indent=2)
 
-
-@cli.command("generate-report")
-@click.option("--input-json", "input_json", type=click.Path(exists=True), required=True)
-@click.option("--json-output", "json_output", type=click.Path(), default=None)
-@click.option("--markdown-output", "markdown_output", type=click.Path(), default=None)
-@click.option("--redact-findings", is_flag=True, default=False, help="Mask detected secret values in generated JSON/Markdown reports.")
-def generate_report(input_json: str, json_output: str | None, markdown_output: str | None, redact_findings: bool):
-    report = json.loads(Path(input_json).read_text(encoding="utf-8"))
-    findings = report.get("findings", [])
-
-    _write_json_output(json_output, report, redact_findings=redact_findings)
-    _write_markdown_output(markdown_output, findings, redact_findings=redact_findings)
+    total = len(findings) + skipped_count
+    click.echo(f"Processed repo files: {total - skipped_count}/{total}")
+    if max_file_bytes is not None:
+        click.echo(
+            f"Skipped files: {skipped_count} (reason: exceeds --max-file-bytes={max_file_bytes} / {_fmt_bytes(max_file_bytes)})"
+        )
+    click.echo(f"Findings: {len(findings)}")
 
 
 if __name__ == "__main__":
