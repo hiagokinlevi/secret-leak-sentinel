@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--no-default-suppressions` flag to ignore `.secret-leak-sentinel-ignore` (cycle 55)
+- [x] Add `--changed-only` flag to `scan-path` using git diff against HEAD (cycle 56)
