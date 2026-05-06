@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Optional
 
 import click
 
-from scanners.filesystem_scanner import FilesystemScanner
+from reports.markdown import generate_markdown_report
+from scanners.diff_scanner import scan_unified_diff
 
 
 @click.group()
@@ -15,42 +15,39 @@ def cli() -> None:
     """secret-leak-sentinel CLI."""
 
 
-@cli.command("scan-path")
-@click.argument("target_path", required=False, type=click.Path(path_type=Path))
-@click.option("--json-output", "json_output", type=click.Path(path_type=Path), default=None)
-@click.option("--from-stdin", "from_stdin", is_flag=True, default=False, help="Read raw content from stdin and scan as a virtual file.")
-@click.option("--stdin-filename", "stdin_filename", default="<stdin>", show_default=True, help="Virtual filename used when scanning stdin content.")
-def scan_path(
-    target_path: Optional[Path],
+@cli.command("scan-diff")
+@click.option(
+    "--patch-file",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False, readable=True),
+    default=None,
+    help="Path to unified diff patch file. Defaults to stdin when omitted.",
+)
+@click.option("--json-output", type=click.Path(path_type=Path), default=None, help="Write findings as JSON.")
+@click.option("--markdown-output", type=click.Path(path_type=Path), default=None, help="Write findings as Markdown.")
+def scan_diff_command(
+    patch_file: Optional[Path],
     json_output: Optional[Path],
-    from_stdin: bool,
-    stdin_filename: str,
+    markdown_output: Optional[Path],
 ) -> None:
-    """Scan a filesystem path (or stdin content) for secrets."""
-    scanner = FilesystemScanner()
+    """Scan only added/modified lines from a unified diff for secrets."""
 
-    if from_stdin:
-        raw = sys.stdin.read()
-        findings = scanner.scan_text(raw, source_name=stdin_filename)
+    if patch_file is None:
+        patch_text = click.get_text_stream("stdin").read()
     else:
-        if target_path is None:
-            raise click.UsageError("TARGET_PATH is required unless --from-stdin is provided")
-        findings = scanner.scan_path(target_path)
+        patch_text = patch_file.read_text(encoding="utf-8", errors="replace")
 
-    payload = {
-        "findings": [f.to_dict() for f in findings],
-        "summary": {
-            "total_findings": len(findings),
-        },
-    }
+    findings = scan_unified_diff(patch_text)
 
     if json_output:
-        json_output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    else:
-        click.echo(json.dumps(payload, indent=2))
+        json_output.parent.mkdir(parents=True, exist_ok=True)
+        json_output.write_text(json.dumps([f.model_dump() for f in findings], indent=2), encoding="utf-8")
 
-    raise SystemExit(1 if findings else 0)
+    if markdown_output:
+        markdown_output.parent.mkdir(parents=True, exist_ok=True)
+        markdown_output.write_text(generate_markdown_report(findings), encoding="utf-8")
 
+    for finding in findings:
+        click.echo(f"{finding.file_path}:{finding.line_number}: {finding.detector} -> {finding.secret_snippet}")
 
-if __name__ == "__main__":
-    cli()
+    if findings:
+        raise SystemExit(1)
