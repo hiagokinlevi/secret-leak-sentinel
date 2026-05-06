@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `scan-diff` CLI command for patch-only secret scanning (cycle 54)
+- [x] Add `--no-default-suppressions` flag to ignore `.secret-leak-sentinel-ignore` (cycle 55)
