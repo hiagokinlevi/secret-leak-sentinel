@@ -25,18 +25,13 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **Pre-push hook** — scans outgoing commit patches so `--no-verify` commits still get a last defensive check
 - **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
 - **VS Code extension scaffold** — a local editor integration runs `scan-file --json-output` and turns findings into inline diagnostics
-- **Default suppression controls for CI** — use `--no-default-suppressions` to ignore `.secret-leak-sentinel-ignore` while still honoring explicit `--suppression-file`
+- **Default suppression controls for CI** — use `--no-default-suppr
 
 ---
 
-## CLI suppression behavior
+## Quick usage
 
-By default, scan commands load repository suppressions from `.secret-leak-sentinel-ignore`.
-
-For stricter CI verification runs, you can disable that default file:
-
-- `scan-path ... --no-default-suppressions`
-- `scan-staged ... --no-default-suppressions`
-- `scan-git ... --no-default-suppressions`
-
-If you pass `--suppression-file path/to/file`, that explicit suppression file is still loaded even when `--no-default-suppressions` is enabled.
+```bash
+# Scan only tracked files changed versus HEAD (staged + unstaged)
+secret-leak-sentinel scan-path . --changed-only
+```
