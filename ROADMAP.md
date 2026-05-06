@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--fail-on-detector` flag for detector-specific CI blocking (cycle 53)
+- [x] Add `scan-diff` CLI command for patch-only secret scanning (cycle 54)
