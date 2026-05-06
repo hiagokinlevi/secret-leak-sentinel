@@ -25,17 +25,18 @@ Secrets — API keys, tokens, private keys, database passwords, and connection s
 - **Pre-push hook** — scans outgoing commit patches so `--no-verify` commits still get a last defensive check
 - **GitHub Action support** — composite Marketplace-ready action validates CLI inputs, installs the tool, and exposes generated report paths as workflow outputs
 - **VS Code extension scaffold** — a local editor integration runs `scan-file --json-output` and turns findings into inline diagnostics
-- **Baseline comparison mode** — pass `--baseline previous.json` to path, staged, or git scans to suppress already-known findings by fingerprint
+- **Default suppression controls for CI** — use `--no-default-suppressions` to ignore `.secret-leak-sentinel-ignore` while still honoring explicit `--suppression-file`
 
-### CI incremental PR scan with baseline
+---
 
-```bash
-# Baseline from main branch
-secret-leak-sentinel scan-path --path . --format json --output baseline.json
+## CLI suppression behavior
 
-# In PR branch, only fail on newly introduced findings in staged changes
-secret-leak-sentinel scan-staged --baseline baseline.json --format json --output pr-findings.json
+By default, scan commands load repository suppressions from `.secret-leak-sentinel-ignore`.
 
-# Or compare working tree / history scans against baseline
-secret-leak-sentinel scan-git --baseline baseline.json --format json --output pr-git-findings.json
-```
+For stricter CI verification runs, you can disable that default file:
+
+- `scan-path ... --no-default-suppressions`
+- `scan-staged ... --no-default-suppressions`
+- `scan-git ... --no-default-suppressions`
+
+If you pass `--suppression-file path/to/file`, that explicit suppression file is still loaded even when `--no-default-suppressions` is enabled.
