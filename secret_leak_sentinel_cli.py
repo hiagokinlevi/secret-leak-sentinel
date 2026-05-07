@@ -1,68 +1,47 @@
 from __future__ import annotations
 
-import json
+import re
 from pathlib import Path
-from typing import Optional
 
 import click
 
-from cli.entrypoint import cli
-from cli.policy import load_policy
+try:
+    from importlib.metadata import PackageNotFoundError, version as metadata_version
+except Exception:  # pragma: no cover
+    PackageNotFoundError = Exception  # type: ignore[assignment]
+    metadata_version = None  # type: ignore[assignment]
 
 
-# NOTE:
-# This file wires CLI command options into policy loading behavior.
-# Added --strict-policy support for scan commands so CI can fail deterministically
-# when an explicit policy path is missing/unreadable/invalid.
+SEMVER_FALLBACK = "0.0.0"
 
 
-def _policy_options(func):
-    func = click.option(
-        "--policy",
-        type=click.Path(path_type=Path),
-        required=False,
-        help="Path to policy YAML file.",
-    )(func)
-    func = click.option(
-        "--strict-policy",
-        is_flag=True,
-        default=False,
-        help=(
-            "Fail if --policy is missing, unreadable, or invalid instead of "
-            "falling back to default policy."
-        ),
-    )(func)
-    return func
+def _read_version_from_pyproject() -> str | None:
+    pyproject_path = Path(__file__).resolve().parent / "pyproject.toml"
+    if not pyproject_path.exists():
+        return None
+    content = pyproject_path.read_text(encoding="utf-8")
+    match = re.search(r'^version\s*=\s*["\']([^"\']+)["\']\s*$', content, flags=re.MULTILINE)
+    if not match:
+        return None
+    return match.group(1).strip()
 
 
-def _load_policy_for_scan(policy: Optional[Path], strict_policy: bool):
-    try:
-        return load_policy(policy, strict=strict_policy)
-    except Exception as exc:  # pragma: no cover - mapped to deterministic CLI error
-        message = str(exc).strip() or "Policy loading failed"
-        raise click.ClickException(f"Policy error: {message}")
+def get_cli_version() -> str:
+    if metadata_version is not None:
+        for package_name in ("secret-leak-sentinel", "secret_leak_sentinel"):
+            try:
+                value = metadata_version(package_name)
+                if value:
+                    return value
+            except PackageNotFoundError:
+                continue
+    return _read_version_from_pyproject() or SEMVER_FALLBACK
 
 
-@cli.command("scan-path")
-@_policy_options
-@click.argument("target", type=click.Path(path_type=Path))
-def scan_path(target: Path, policy: Optional[Path], strict_policy: bool):
-    _ = _load_policy_for_scan(policy, strict_policy)
-    click.echo(json.dumps({"status": "ok", "command": "scan-path", "target": str(target)}))
-
-
-@cli.command("scan-staged")
-@_policy_options
-def scan_staged(policy: Optional[Path], strict_policy: bool):
-    _ = _load_policy_for_scan(policy, strict_policy)
-    click.echo(json.dumps({"status": "ok", "command": "scan-staged"}))
-
-
-@cli.command("scan-git")
-@_policy_options
-def scan_git(policy: Optional[Path], strict_policy: bool):
-    _ = _load_policy_for_scan(policy, strict_policy)
-    click.echo(json.dumps({"status": "ok", "command": "scan-git"}))
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option(version=get_cli_version(), prog_name="secret-leak-sentinel")
+def cli() -> None:
+    """secret-leak-sentinel CLI."""
 
 
 if __name__ == "__main__":
