@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--changed-only` flag to `scan-path` using git diff against HEAD (cycle 56)
+- [x] Add `--strict-policy` flag to fail when policy file is missing/invalid (cycle 57)
