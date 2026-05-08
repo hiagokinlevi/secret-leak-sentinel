@@ -56,4 +56,4 @@ Planned development direction for `secret-leak-sentinel`.
 - [x] Cross-file correlation (e.g., same high-ent
 
 ## Automated Completions
-- [x] Add `--version` CLI flag with pyproject-backed semantic version output (cycle 58)
+- [x] Add `--exit-code-threshold` to scan commands (cycle 59)
